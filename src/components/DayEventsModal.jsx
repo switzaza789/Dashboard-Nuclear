@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { X, Clock, MapPin } from 'lucide-react';
+import { X, Clock, MapPin, Link } from 'lucide-react';
 
-const DayEventsModal = ({ isOpen, onClose, date, events, employeeName, employeeEmail, onDataChanged, onAddEventClick, showToast }) => {
-
-
+const DayEventsModal = ({ isOpen, onClose, date, events, employeeName }) => {
   if (!isOpen) return null;
 
   const formatTime = (isoString) => format(new Date(isoString), 'h:mm a');
 
-
+  // Strip URLs from description text and extract them separately
+  const parseDescription = (text) => {
+    if (!text) return { cleanText: '', urls: [] };
+    const urlRegex = /(https?:\/\/[^\s<>]+)/g;
+    const urls = text.match(urlRegex) || [];
+    const cleanText = text
+      .replace(urlRegex, '')
+      .replace(/_{2,}/g, '') // remove long underscores used as dividers
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    return { cleanText, urls };
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -40,41 +48,66 @@ const DayEventsModal = ({ isOpen, onClose, date, events, employeeName, employeeE
         </div>
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto flex-1">
-
+        <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
           {events.length === 0 ? (
             <div className="text-center text-gray-500 py-10 border border-dashed border-[#374151] rounded-xl">
               No events scheduled for this day.
             </div>
           ) : (
             <div className="space-y-4">
-              {events.map(event => (
-                <div key={event.id} className="p-4 bg-[#1f2937] border border-[#374151] rounded-xl flex items-center justify-between group">
-                  <div>
-                    <h3 className="font-bold text-white text-lg">{event.title}</h3>
-                    <div className="flex flex-col gap-1 mt-2 text-sm text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-cyan-400" />
-                        <span>{formatTime(event.start)} - {formatTime(event.end)}</span>
-                      </div>
-                      {event.location && (
-                        <div className="flex items-center gap-2">
-                          <MapPin size={14} className="text-cyan-400" />
-                          <span>{event.location}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
+              {events.map(event => {
+                const { cleanText, urls } = parseDescription(event.description);
+                return (
+                  <div key={event.id} className="p-4 bg-[#1f2937] border border-[#374151] rounded-xl flex flex-col gap-2">
+                    {/* Title */}
+                    <h3 className="font-bold text-white text-base leading-snug break-words">{event.title}</h3>
 
-                </div>
-              ))}
+                    {/* Time */}
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <Clock size={14} className="text-cyan-400 shrink-0" />
+                      <span>{formatTime(event.start)} - {formatTime(event.end)}</span>
+                    </div>
+
+                    {/* Location */}
+                    {event.location && (
+                      <div className="flex items-start gap-2 text-sm text-gray-400">
+                        <MapPin size={14} className="text-cyan-400 shrink-0 mt-0.5" />
+                        <span className="break-words">{event.location}</span>
+                      </div>
+                    )}
+
+                    {/* Clean description text (no URLs) */}
+                    {cleanText && (
+                      <p className="text-xs text-gray-500 leading-relaxed break-words whitespace-pre-wrap border-t border-[#374151]/50 pt-2 mt-1">
+                        {cleanText}
+                      </p>
+                    )}
+
+                    {/* Extracted links */}
+                    {urls.length > 0 && (
+                      <div className="flex flex-col gap-1 border-t border-[#374151]/50 pt-2 mt-1">
+                        {urls.map((url, i) => (
+                          <a
+                            key={i}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 hover:underline truncate"
+                            title={url}
+                          >
+                            <Link size={11} className="shrink-0" />
+                            <span className="truncate">{url.length > 60 ? url.substring(0, 60) + '…' : url}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
-
-
     </div>
   );
 };

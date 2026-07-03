@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Thermometer, Droplets, Clock, CheckSquare, Square, Maximize2, X } from 'lucide-react';
+import { Thermometer, Droplets, Clock, CheckSquare, Square, Expand, Minimize2, X, Settings, Check, Maximize2 } from 'lucide-react';
 import { CONFIG } from '../tapoConfig';
 import './tapoDashboard.css'; // Import the scoped CSS
 
@@ -43,7 +43,7 @@ const CustomLegend = ({ payload, onHover, type }) => {
   );
 };
 
-export default function TapoDashboard({ viewMode }) {
+export default function TapoDashboard({ viewMode, displayMode = 'full', onToggleFullscreen }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -58,6 +58,14 @@ export default function TapoDashboard({ viewMode }) {
   const [visibleRooms, setVisibleRooms] = useState(
     CONFIG.rooms.reduce((acc, room) => ({...acc, [room.id]: true}), {})
   );
+  const [showSettingsPopover, setShowSettingsPopover] = useState(false);
+
+  useEffect(() => {
+    if (!showSettingsPopover) return;
+    const handleClose = () => setShowSettingsPopover(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [showSettingsPopover]);
 
   const toggleRoom = (roomId) => {
     setVisibleRooms(prev => ({...prev, [roomId]: !prev[roomId]}));
@@ -319,22 +327,14 @@ export default function TapoDashboard({ viewMode }) {
   if (error) {
     return <div className="loading" style={{color: '#ef4444'}}>Error: {error}</div>;
   }
-
   let leftAxisColor = "var(--text-muted)";
-  let rightAxisColor = "var(--text-muted)";
   let leftAxisFilter = "none";
-  let rightAxisFilter = "none";
   let leftAxisWeight = "normal";
-  let rightAxisWeight = "normal";
 
   if (hoveredRoom) {
     const hoveredRoomConfig = CONFIG.rooms.find(r => r.id === hoveredRoom);
     if (hoveredRoomConfig) {
-      if (hoveredRoom.includes('fridge')) {
-        rightAxisColor = hoveredRoomConfig.color;
-        rightAxisFilter = `drop-shadow(0px 0px 8px ${hoveredRoomConfig.color})`;
-        rightAxisWeight = "bold";
-      } else {
+      if (!hoveredRoom.includes('fridge')) {
         leftAxisColor = hoveredRoomConfig.color;
         leftAxisFilter = `drop-shadow(0px 0px 8px ${hoveredRoomConfig.color})`;
         leftAxisWeight = "bold";
@@ -343,66 +343,231 @@ export default function TapoDashboard({ viewMode }) {
   }
 
   return (
-    <div className={`tapo-dashboard-container w-full h-full ${viewMode === 'split' ? 'is-split-view' : ''}`}>
+    <div className={`tapo-dashboard-container w-full h-full ${viewMode === 'split' ? 'is-split-view' : ''} ${displayMode === 'compact' ? 'is-compact-mode' : ''}`}>
       <div className="dashboard-content">
-        <div className="dashboard-header text-center">
-          <h2>Tapo Central Dashboard</h2>
-          <p>Real-time Environment Monitoring & Analytics</p>
+        <div className="dashboard-header flex items-center justify-between px-4 py-2 border-b border-gray-800/40" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ textAlign: 'left' }}>
+            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Tapo Central Dashboard</h2>
+            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>Real-time Environment Monitoring & Analytics</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginRight: '28px' }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSettingsPopover(true);
+              }}
+              style={{
+                padding: '6px',
+                backgroundColor: '#1f2937',
+                border: '1px solid #374151',
+                borderRadius: '8px',
+                color: '#06b6d4',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}
+              className="hover:text-white hover:bg-slate-700"
+              title="ตั้งค่าช่วงเวลาและการกรองห้อง"
+            >
+              <Settings size={15} />
+            </button>
+            {onToggleFullscreen && (
+              <button 
+                onClick={onToggleFullscreen}
+                style={{
+                  padding: '6px',
+                  backgroundColor: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                  color: '#06b6d4',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                }}
+                className="hover:text-white hover:bg-slate-700"
+                title={viewMode === 'tapo' ? "ย่อหน้าต่างกลับเป็นแบบแยกจอ" : "ขยาย Tapo Dashboard เต็มจอ"}
+              >
+                {viewMode === 'tapo' ? <Minimize2 size={15} /> : <Expand size={15} />}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Control Panel */}
-        <div className="glass-panel control-panel">
-          <div className="control-group">
-            <label><Clock size={18} /> ช่วงเวลาที่ต้องการดู:</label>
-            <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center'}}>
-              <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)} className="modern-select">
-                <option value="1h">1 ชั่วโมงล่าสุด</option>
-                <option value="3h">3 ชั่วโมงล่าสุด</option>
-                <option value="6h">6 ชั่วโมงล่าสุด</option>
-                <option value="24h">24 ชั่วโมงล่าสุด</option>
-                <option value="all">ทั้งหมด (All Time)</option>
-                <option value="custom">📅 เลือกวันที่เอง...</option>
-              </select>
-
-              {timeFilter === 'custom' && (
-                <div className="date-picker-group">
-                  <input 
-                    type="date" 
-                    className="modern-input" 
-                    value={startDate} 
-                    onChange={(e) => setStartDate(e.target.value)} 
-                    title="วันที่เริ่มต้น"
-                  />
-                  <span style={{color: 'var(--text-muted)', fontWeight: 600}}>ถึง</span>
-                  <input 
-                    type="date" 
-                    className="modern-input" 
-                    value={endDate} 
-                    onChange={(e) => setEndDate(e.target.value)} 
-                    title="วันที่สิ้นสุด"
-                  />
-                </div>
-              )}
+        {/* Settings Full-Card Overlay */}
+        {showSettingsPopover && (
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundColor: 'rgba(11, 15, 25, 0.97)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: '16px',
+              padding: '20px',
+              zIndex: 95,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              textAlign: 'left',
+            }}
+            className="animate-in fade-in duration-100"
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Settings size={16} className="text-cyan-400" />
+                ตั้งค่าแสดงผล Tapo
+              </h3>
+              <button 
+                onClick={() => setShowSettingsPopover(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                className="hover:bg-white/10"
+              >
+                <X size={16} />
+              </button>
             </div>
-          </div>
-          
-          <div className="control-group toggles-group">
-            <label>เลือกเปิด/ปิดกราฟของแต่ละห้อง:</label>
-            <div className="room-toggles">
-              {CONFIG.rooms.map(room => (
-                <div 
-                  key={room.id} 
-                  className={`room-toggle ${visibleRooms[room.id] ? 'active' : ''}`}
-                  onClick={() => toggleRoom(room.id)}
-                  style={{ '--room-color': room.color }}
+
+            {/* Scrollable Form Body */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }} className="custom-scrollbar">
+              {/* Time Filter */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock size={12} className="text-cyan-400" /> ช่วงเวลาที่ต้องการดู
+                </label>
+                <select 
+                  value={timeFilter} 
+                  onChange={(e) => setTimeFilter(e.target.value)} 
+                  className="modern-select"
+                  style={{ width: '100%' }}
                 >
-                  {visibleRooms[room.id] ? <CheckSquare size={16} /> : <Square size={16} />}
-                  {room.icon} {room.sheetName}
+                  <option value="1h">1 ชั่วโมงล่าสุด</option>
+                  <option value="3h">3 ชั่วโมงล่าสุด</option>
+                  <option value="6h">6 ชั่วโมงล่าสุด</option>
+                  <option value="24h">24 ชั่วโมงล่าสุด</option>
+                  <option value="all">ทั้งหมด (All Time)</option>
+                  <option value="custom">📅 เลือกวันที่เอง...</option>
+                </select>
+
+                {timeFilter === 'custom' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', padding: '10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '10px', color: '#64748b' }}>เริ่มต้น:</span>
+                      <input 
+                        type="date" 
+                        className="modern-input" 
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={startDate} 
+                        onChange={(e) => setStartDate(e.target.value)} 
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '10px', color: '#64748b' }}>สิ้นสุด:</span>
+                      <input 
+                        type="date" 
+                        className="modern-input" 
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={endDate} 
+                        onChange={(e) => setEndDate(e.target.value)} 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Room Toggles */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  เลือกเปิด/ปิดกราฟแต่ละห้อง
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {CONFIG.rooms.map(room => (
+                    <div 
+                      key={room.id} 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid',
+                        borderColor: visibleRooms[room.id] ? 'rgba(6, 182, 212, 0.3)' : 'rgba(255,255,255,0.04)',
+                        backgroundColor: visibleRooms[room.id] ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
+                        color: visibleRooms[room.id] ? '#ffffff' : '#64748b',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        transition: 'all 0.2s',
+                      }}
+                      onClick={() => toggleRoom(room.id)}
+                    >
+                      <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px' }}>{room.icon}</span>
+                        <span>{room.sheetName}</span>
+                      </span>
+                      <div style={{
+                        width: '15px',
+                        height: '15px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid',
+                        borderColor: visibleRooms[room.id] ? '#06b6d4' : '#475569',
+                        backgroundColor: visibleRooms[room.id] ? '#06b6d4' : 'transparent',
+                        color: '#0f172a',
+                        transition: 'all 0.2s',
+                      }}>
+                        {visibleRooms[room.id] && <Check size={10} strokeWidth={3} />}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            </div>
+
+            {/* Footer Done button */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+              <button
+                onClick={() => setShowSettingsPopover(false)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  backgroundColor: '#06b6d4',
+                  color: '#0f172a',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+                className="hover:bg-cyan-400"
+              >
+                <Check size={14} strokeWidth={3} />
+                <span>บันทึกและปิดการตั้งค่า</span>
+              </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Charts Section - Side by Side */}
         <div className="charts-grid-side-by-side">

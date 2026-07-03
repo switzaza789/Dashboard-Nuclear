@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { 
   startOfWeek, 
@@ -23,6 +23,9 @@ const ScheduleBoard = ({ employee, currentDate, setCurrentDate }) => {
   // Generate array of 7 days
   const days = [...Array(7)].map((_, i) => addDays(weekStart, i));
 
+  const weekStartStr = weekStart.toISOString();
+  const weekEndStr = weekEnd.toISOString();
+
   useEffect(() => {
     const loadEvents = async () => {
       setLoading(true);
@@ -33,7 +36,7 @@ const ScheduleBoard = ({ employee, currentDate, setCurrentDate }) => {
       setLoading(false);
     };
     loadEvents();
-  }, [employee, weekStart.toISOString()]); // Reload when employee or week changes
+  }, [employee, weekStartStr, weekEndStr, weekStart, weekEnd]); // Reload when employee or week changes
 
   const nextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
   const prevWeek = () => setCurrentDate(subWeeks(currentDate, 1));

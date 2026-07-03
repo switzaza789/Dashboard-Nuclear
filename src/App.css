@@ -182,3 +182,58 @@
     border-right-color: var(--border);
   }
 }
+
+/* --- TV Dashboard Grid Styles --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: clamp(10px, 0.8vw, 20px);
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: clamp(12px, 0.8vw, 24px);
+  background-color: #030712;
+}
+
+body.is-dragging-dashboard {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.4);
+}
+
+/* Responsive Overrides for Stacked Mobile Layout */
+@media (max-width: 1279px) {
+  .app-viewport-container {
+    height: auto !important;
+    min-height: 100vh;
+    overflow: auto !important;
+  }
+  .main-content-area {
+    overflow: visible !important;
+    flex: none !important;
+    height: auto !important;
+  }
+}
+

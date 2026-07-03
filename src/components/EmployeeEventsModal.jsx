@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format, isToday, isSameDay, addDays, getHours, getMinutes, differenceInMinutes } from 'date-fns';
 import { X, Calendar as CalendarIcon } from 'lucide-react';
 
-const EmployeeEventsModal = ({ isOpen, onClose, employee, events, weekStart, onDataChanged, onAddEventClick, showToast }) => {
+const EmployeeEventsModal = ({ isOpen, onClose, employee, events, weekStart }) => {
   const scrollRef = useRef(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
 

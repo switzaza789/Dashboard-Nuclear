@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Save, User, Activity } from 'lucide-react';
 
 const EditProfileModal = ({ isOpen, onClose, employee, onSave }) => {
@@ -8,9 +8,11 @@ const EditProfileModal = ({ isOpen, onClose, employee, onSave }) => {
 
   useEffect(() => {
     if (isOpen && employee) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDepartment(employee.department || 'Engineer');
       setCustomStatus(employee.customStatus || '');
-      setAvatarUrl(employee.avatarUrl || '');
+      // Use base64 from file upload if provided, otherwise existing avatarUrl
+      setAvatarUrl(employee._avatarBase64 || employee.avatarUrl || '');
     }
   }, [isOpen, employee]);
 

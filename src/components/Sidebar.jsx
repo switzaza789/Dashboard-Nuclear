@@ -1,5 +1,4 @@
-import React from 'react';
-import { User, Settings, Video } from 'lucide-react';
+import { Settings, Video } from 'lucide-react';
 
 const Sidebar = ({ employees, selectedEmployee, onSelectEmployee }) => {
   // Simple check for "live status". In reality, this would check current time against events.

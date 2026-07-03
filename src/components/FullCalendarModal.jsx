@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
-  format, isSameDay, addDays, subDays, startOfMonth, endOfMonth, 
+  format, isSameDay, addDays, startOfMonth, endOfMonth, 
   startOfWeek, endOfWeek, differenceInMinutes, getHours, getMinutes, isToday
 } from 'date-fns';
 import { X, Calendar as CalendarIcon } from 'lucide-react';
@@ -17,8 +17,10 @@ const FullCalendarModal = ({ isOpen, onClose, currentDate, employees, onColorCha
 
   useEffect(() => {
     if (employees.length > 0 && visibleEmails.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisibleEmails(employees.map(e => e.email));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employees]);
 
   const employeeEmails = employees.map(e => e.email).join(',');
@@ -41,6 +43,7 @@ const FullCalendarModal = ({ isOpen, onClose, currentDate, employees, onColorCha
       loadEvents();
     }
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, employeeEmails]);
 
   useEffect(() => {

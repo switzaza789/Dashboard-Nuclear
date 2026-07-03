@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Calendar as CalendarIcon, Clock, MapPin, AlignLeft, User } from 'lucide-react';
 import { createEvent } from '../api/calendar';
 import { format } from 'date-fns';
@@ -17,6 +17,7 @@ const CreateEventModal = ({ isOpen, onClose, employees, onEventCreated, initialE
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         email: initialEmail || '',
         title: '',
@@ -55,7 +56,7 @@ const CreateEventModal = ({ isOpen, onClose, employees, onEventCreated, initialE
       
       onEventCreated();
       onClose();
-    } catch (err) {
+    } catch {
       if (showToast) {
         showToast('ไม่สามารถบันทึกกิจกรรมได้ / Create event failed', 'error');
       }

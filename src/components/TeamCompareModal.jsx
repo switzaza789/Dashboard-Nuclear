@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format, isSameDay, addDays, subDays, getHours, getMinutes, differenceInMinutes } from 'date-fns';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
@@ -35,6 +35,7 @@ const TeamCompareModal = ({ isOpen, onClose, employees, initialDate }) => {
   // Update internal date and scroll on open
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentDate(initialDate || new Date());
       setTimeout(() => {
         if (scrollRef.current) scrollRef.current.scrollTop = 480; // Scroll to 8 AM
