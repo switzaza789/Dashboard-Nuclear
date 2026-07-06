@@ -39,29 +39,29 @@ const CalendarDashboardPanel = ({
       
       {/* Non-scrolling Panel Header */}
       <div className={`mb-4 shrink-0 pb-3 border-b border-[#1f2937]/50`}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className={`${isSplitView ? 'text-xl' : 'text-3xl'} font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between w-full">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            <h1 className={`${isSplitView ? 'text-xl' : 'text-3xl'} font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500 whitespace-nowrap`}>
               Team Schedule
             </h1>
             
             {/* Team Overview Summary Badge */}
-            <div className="flex flex-wrap items-center gap-2 bg-[#1f2937]/80 border border-[#374151] rounded-full px-3 py-1 text-xs font-semibold shadow-lg backdrop-blur-sm">
-              <span className="flex items-center gap-1 text-emerald-400" title="ว่าง / อยู่ที่ออฟฟิศ">
+            <div className="flex flex-wrap items-center gap-2 bg-[#1f2937]/80 border border-[#374151] rounded-full px-3 py-1 text-[11px] font-semibold shadow-lg backdrop-blur-sm max-w-full">
+              <span className="flex items-center gap-1 text-emerald-400 whitespace-nowrap" title="ว่าง / อยู่ที่ออฟฟิศ">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div> ว่าง: {teamOverview.available}
               </span>
               {teamOverview.busy > 0 && (
-                <span className="flex items-center gap-1 text-pink-400 border-l border-[#374151] pl-2">
+                <span className="flex items-center gap-1 text-pink-400 border-l border-[#374151] pl-2 whitespace-nowrap">
                   <div className="w-1.5 h-1.5 rounded-full bg-pink-400"></div> ติดงาน: {teamOverview.busy}
                 </span>
               )}
               {teamOverview.wfh > 0 && (
-                <span className="flex items-center gap-1 text-blue-400 border-l border-[#374151] pl-2">
+                <span className="flex items-center gap-1 text-blue-400 border-l border-[#374151] pl-2 whitespace-nowrap">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div> WFH: {teamOverview.wfh}
                 </span>
               )}
               {teamOverview.onLeave > 0 && (
-                <span className="flex items-center gap-1 text-red-400 border-l border-[#374151] pl-2">
+                <span className="flex items-center gap-1 text-red-400 border-l border-[#374151] pl-2 whitespace-nowrap">
                   <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div> ลา: {teamOverview.onLeave}
                 </span>
               )}
@@ -84,9 +84,8 @@ const CalendarDashboardPanel = ({
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'all 0.2s',
-              marginRight: '28px',
             }}
-            className="hover:text-white hover:bg-slate-700"
+            className="hover:text-white hover:bg-slate-700 self-start shrink-0"
             title="ตั้งค่าตัวกรองและปฏิทินพนักงาน"
           >
             <Settings size={15} />

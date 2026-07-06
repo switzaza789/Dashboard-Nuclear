@@ -1,9 +1,6 @@
 import { Settings, Video } from 'lucide-react';
 
 const Sidebar = ({ employees, selectedEmployee, onSelectEmployee }) => {
-  // Simple check for "live status". In reality, this would check current time against events.
-  const isLiveMeeting = false;
-
   return (
     <div className="glass-panel h-full flex flex-col p-6 rounded-r-3xl border-l-0 border-y-0">
       <div className="flex items-center justify-between mb-8">
@@ -24,16 +21,11 @@ const Sidebar = ({ employees, selectedEmployee, onSelectEmployee }) => {
               className="w-full h-full rounded-full object-cover border-4 border-indigo-500/30"
             />
             {/* Live Status Indicator */}
-            <div className={`absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-[var(--bg)] ${isLiveMeeting ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}`}></div>
+            <div className="absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-[var(--bg)] bg-emerald-500"></div>
           </div>
           
           <h2 className="text-2xl font-semibold">{selectedEmployee.name}</h2>
           <p className="text-gray-400 text-sm">{selectedEmployee.email}</p>
-          
-          <div className={`mt-4 px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 ${isLiveMeeting ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
-            {isLiveMeeting ? <Video size={14} /> : <div className="w-2 h-2 rounded-full bg-emerald-400" />}
-            {isLiveMeeting ? 'In a Meeting' : 'Available'}
-          </div>
         </div>
       )}
 

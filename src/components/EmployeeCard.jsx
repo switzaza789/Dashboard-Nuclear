@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format, isSameDay, addDays, isToday, startOfWeek } from 'date-fns';
 import { Clock } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
+import { determineEmployeeStatus } from '../utils/employeeStatus';
 
 
 const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, gridCols = 2 }) => {
@@ -46,79 +47,29 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
     return () => { isMounted = false; };
   }, [employee.email, currentDate, currentDateStr]);
 
-  // Determine Live Status based on today's events (to match UI)
-  const now = new Date();
-  const todayEvents = events.filter(e => isSameDay(new Date(e.start), now));
-  
-  // Try to find an event that is active right now
-  let currentEvent = todayEvents.find(e => {
-    const start = new Date(e.start);
-    const end = new Date(e.end);
-    if (isNaN(end.getTime())) return true;
-    return now >= start && now <= end;
-  });
-
-  // If no strictly active event, but there are events today, use the first one
-  if (!currentEvent && todayEvents.length > 0) {
-    currentEvent = todayEvents[0];
-  }
-
-  // Calculate status (prioritize customStatus override)
-  let statusText = employee.customStatus || "Available";
-  let statusColor = "text-emerald-400";
-  let statusBorder = "border-emerald-400/50";
-
-  if (employee.customStatus) {
-    const cStatus = employee.customStatus.toLowerCase();
-    if (cStatus.includes('ลา') || cStatus.includes('sick') || cStatus.includes('leave') || cStatus.includes('vacation')) {
-      statusColor = "text-red-400";
-      statusBorder = "border-red-400/50";
-    } else if (cStatus.includes('wfh') || cStatus.includes('remote') || cStatus.includes('บ้าน')) {
-      statusColor = "text-blue-400";
-      statusBorder = "border-blue-400/50";
-    } else if (cStatus.includes('meeting') || cStatus.includes('ประชุม')) {
-      statusColor = "text-pink-400";
-      statusBorder = "border-pink-400/50";
-    } else {
-      statusColor = "text-amber-400";
-      statusBorder = "border-amber-400/50";
-    }
-  } else if (currentEvent) {
-    const title = currentEvent.title.toLowerCase();
-    if (title.includes('ลา') || title.includes('sick') || title.includes('leave') || title.includes('vacation')) {
-      statusText = "On Leave";
-      statusColor = "text-red-400";
-      statusBorder = "border-red-400/50";
-    } else if (title.includes('wfh') || title.includes('work from home') || title.includes('remote') || title.includes('บ้าน')) {
-      statusText = "Working Remotely";
-      statusColor = "text-blue-400";
-      statusBorder = "border-blue-400/50";
-    } else if (title.includes('meeting') || title.includes('ประชุม')) {
-      statusText = "In a Meeting";
-      statusColor = "text-pink-400";
-      statusBorder = "border-pink-400/50";
-    } else if (title.includes('ออฟฟิศ') || title.includes('office')) {
-      statusText = "At Office";
-      statusColor = "text-emerald-400";
-      statusBorder = "border-emerald-400/50";
-    } else {
-      // Instead of generic "In a Meeting", use the actual event title (truncated)
-      statusText = currentEvent.title.length > 18 ? currentEvent.title.substring(0, 18) + '...' : currentEvent.title;
-      statusColor = "text-amber-400";
-      statusBorder = "border-amber-400/50";
-    }
-  }
+  const status = determineEmployeeStatus(employee, events, new Date());
+  const statusText = status.label;
+  const statusColor = {
+    red: 'text-red-400',
+    blue: 'text-blue-400',
+    pink: 'text-pink-400',
+    amber: 'text-amber-400',
+    emerald: 'text-emerald-400',
+  }[status.color] || 'text-emerald-400';
+  const statusBorder = {
+    red: 'border-red-400/50',
+    blue: 'border-blue-400/50',
+    pink: 'border-pink-400/50',
+    amber: 'border-amber-400/50',
+    emerald: 'border-emerald-400/50',
+  }[status.color] || 'border-emerald-400/50';
 
   // --- Avatar live-status border color ---
-  // Map status color to actual CSS color values for the glow ring
-  const isLiveNow = (() => {
-    const now = new Date();
-    return events.some(e => now >= new Date(e.start) && now <= new Date(e.end));
-  })();
+  const isLiveNow = status.isLiveNow;
 
   let avatarBorderColor = '#06b6d4'; // default cyan
   let avatarGlowColor   = 'rgba(6,182,212,0.5)';
-  if (isLiveNow || currentEvent) {
+  if (isLiveNow || status.source !== 'default') {
     if (statusColor.includes('red')) {
       avatarBorderColor = '#f87171'; avatarGlowColor = 'rgba(248,113,113,0.5)';
     } else if (statusColor.includes('blue')) {
@@ -200,17 +151,26 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
           Schedule
         </button>
         <h2 className={`${isCompact ? 'text-base' : 'text-xl'} font-bold text-white uppercase tracking-wider text-center group-hover/profile:text-cyan-400 transition-colors duration-300`}>{employee.name}</h2>
-        
-
-        
-
+        <div className={`mt-2 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-semibold ${statusBorder} ${statusColor}`}>
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${
+              status.color === 'red'
+                ? 'bg-red-400'
+                : status.color === 'blue'
+                  ? 'bg-blue-400'
+                  : status.color === 'pink'
+                    ? 'bg-pink-400'
+                    : status.color === 'amber'
+                      ? 'bg-amber-400'
+                      : 'bg-emerald-400'
+            }`}
+          />
+          <span className="max-w-[180px] truncate">{statusText}</span>
+        </div>
 
         {/* Today's Events — always visible, fills bottom of profile panel */}
         {(() => {
           const now = new Date();
-          const todayEvts = events
-            .filter(e => isSameDay(new Date(e.start), now))
-            .sort((a, b) => new Date(a.start) - new Date(b.start));
           return (
             <div className="w-full mt-3 flex flex-col gap-1.5 flex-1 min-h-0">
               {/* Section label */}
@@ -221,13 +181,13 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                 </span>
               </div>
 
-              {todayEvts.length === 0 ? (
+              {status.todayEvents.length === 0 ? (
                 <p className="text-[11px] text-gray-600 text-center py-2 border border-dashed border-gray-800 rounded-lg">
                   ไม่มีงานวันนี้
                 </p>
               ) : (
                 <div className="flex flex-col gap-1 overflow-y-auto max-h-36 pr-0.5">
-                  {todayEvts.map(ev => {
+                  {status.todayEvents.map(ev => {
                     const start = new Date(ev.start);
                     const end = new Date(ev.end);
                     const isActive = now >= start && now <= end;

@@ -58,7 +58,7 @@ const DayEventsModal = ({ isOpen, onClose, date, events, employeeName }) => {
               {events.map(event => {
                 const { cleanText, urls } = parseDescription(event.description);
                 return (
-                  <div key={event.id} className="p-4 bg-[#1f2937] border border-[#374151] rounded-xl flex flex-col gap-2">
+                      <div key={event.id} className="p-4 bg-[#1f2937] border border-[#374151] rounded-xl flex flex-col gap-2 min-w-0 overflow-hidden">
                     {/* Title */}
                     <h3 className="font-bold text-white text-base leading-snug break-words">{event.title}</h3>
 
@@ -85,18 +85,18 @@ const DayEventsModal = ({ isOpen, onClose, date, events, employeeName }) => {
 
                     {/* Extracted links */}
                     {urls.length > 0 && (
-                      <div className="flex flex-col gap-1 border-t border-[#374151]/50 pt-2 mt-1">
+                      <div className="flex flex-col gap-1 border-t border-[#374151]/50 pt-2 mt-1 min-w-0 overflow-hidden">
                         {urls.map((url, i) => (
                           <a
                             key={i}
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 hover:underline truncate"
+                            className="flex items-start gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 hover:underline break-all min-w-0"
                             title={url}
                           >
                             <Link size={11} className="shrink-0" />
-                            <span className="truncate">{url.length > 60 ? url.substring(0, 60) + '…' : url}</span>
+                            <span className="break-all min-w-0">{url.length > 60 ? url.substring(0, 60) + '…' : url}</span>
                           </a>
                         ))}
                       </div>

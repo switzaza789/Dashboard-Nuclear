@@ -114,10 +114,10 @@ const EmployeeEventsModal = ({ isOpen, onClose, employee, events, weekStart }) =
                       <div 
                         key={event.id} 
                         onClick={() => setSelectedEvent(event)}
-                        className={`rounded px-1.5 py-0.5 text-xs border ${blockColor} truncate cursor-pointer hover:scale-105 transition-transform`}
+                        className={`rounded px-1.5 py-0.5 text-xs border ${blockColor} cursor-pointer hover:scale-105 transition-transform overflow-hidden min-w-0`}
                         title={`=== ${event.title} ===\n\nเวลา: All Day\n\nรายละเอียด/สถานที่:\n${event.location || '-'}`}
                       >
-                        {event.title}
+                        <span className="break-words whitespace-normal block">{event.title}</span>
                       </div>
                     );
                   })}
@@ -184,12 +184,12 @@ const EmployeeEventsModal = ({ isOpen, onClose, employee, events, weekStart }) =
                         <div 
                           key={event.id}
                           onClick={() => setSelectedEvent(event)}
-                          className={`absolute left-0.5 right-0.5 rounded-md border ${blockColor} p-1 overflow-hidden shadow-sm transition-all cursor-pointer z-20`}
+                          className={`absolute left-0.5 right-0.5 rounded-md border ${blockColor} p-1 overflow-hidden shadow-sm transition-all cursor-pointer z-20 min-w-0`}
                           style={{ top: `${top}px`, height: `${height}px` }}
-                          title={`=== ${event.title} ===\n\nเวลา: ${formatTime(event.start)} - ${formatTime(event.end)}\n\nรายละเอียด/สถานที่:\n${event.location || '-'}`}
+                          title={`=== ${event.title} ===`}
                         >
-                          <div className="font-semibold text-xs leading-tight truncate">{event.title}</div>
-                          <div className="text-[10px] opacity-90 truncate mt-0.5">
+                          <div className="font-semibold text-xs leading-tight break-words whitespace-normal">{event.title}</div>
+                          <div className="text-[10px] opacity-90 whitespace-nowrap mt-0.5">
                             {formatTime(event.start)} - {formatTime(event.end)}
                           </div>
                         </div>

@@ -176,42 +176,31 @@ function App() {
         {layout.announcement}
       </div>
 
-      {/* Floating Toggle Header Button */}
-      <div className="absolute top-2 left-1/2 transform -translate-x-1/2 z-50">
-        <button 
-          onClick={() => setIsHeaderVisible(!isHeaderVisible)}
-          className="bg-gray-800/80 hover:bg-gray-700 text-cyan-400 p-1.5 rounded-full backdrop-blur-md border border-gray-700 shadow-lg transition-all"
-          title={isHeaderVisible ? "ซ่อนแถบควบคุม" : "แสดงแถบควบคุม"}
-        >
-          {isHeaderVisible ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-        </button>
-      </div>
-
       {/* Global Collapsible Header */}
-      <div className={`bg-gray-900/90 backdrop-blur-lg border-b border-gray-800 transition-all duration-300 ease-in-out z-40 ${isHeaderVisible ? 'h-16 opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
-        <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          <div className="font-bold text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 hidden md:block">
+      <div className={`bg-gray-900/90 backdrop-blur-lg border-b border-gray-800 transition-all duration-300 ease-in-out z-40 ${isHeaderVisible ? 'h-10 opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
+        <div className="max-w-full h-full px-4 flex items-center justify-between gap-3">
+          <div className="font-bold text-sm text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 hidden md:block whitespace-nowrap">
             Dashboard
           </div>
           
-          <div className="flex items-center gap-4 bg-gray-800/50 p-1.5 rounded-xl border border-gray-700">
+          <div className="flex items-center gap-2 bg-gray-800/50 p-1 rounded-lg border border-gray-700">
             <button 
               onClick={() => handleViewModeChange('split')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'split' ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'split' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
             >
-              <Columns size={16} /> Split View
+              <Columns size={13} /> Split
             </button>
             <button 
               onClick={() => handleViewModeChange('tapo')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'tapo' ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'tapo' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
             >
-              <Maximize2 size={16} /> Tapo Only
+              <Maximize2 size={13} /> Tapo
             </button>
             <button 
               onClick={() => handleViewModeChange('calendar')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${viewMode === 'calendar' ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'calendar' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
             >
-              <CalendarIcon size={16} /> Calendar Only
+              <CalendarIcon size={13} /> Calendar
             </button>
           </div>
 
@@ -223,28 +212,48 @@ function App() {
                 document.exitFullscreen();
               }
             }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-sm font-medium border border-gray-700 transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium border border-gray-700 transition-colors cursor-pointer"
             title="ขยายเบราว์เซอร์เต็มจอ"
           >
-            <Maximize2 size={15} /> Full Screen
+            <Maximize2 size={13} /> Fullscreen
           </button>
 
-          {/* View Mode controls for custom layout or swaps */}
-          {!layout.isEditingLayout && viewMode === 'split' && (
-            <DashboardLayoutToolbar
-              isEditingLayout={layout.isEditingLayout}
-              isDirty={layout.isDirty}
-              isSaving={layout.isSaving}
-              onStartEdit={layout.startEditing}
-              onSave={layout.saveLayout}
-              onCancel={layout.cancelEditing}
-              onReset={layout.resetToDefault}
-              onApplySwapPreset={layout.applySwapPreset}
-              layoutKind={getDashboardLayoutKind(layout.savedLayout)}
-            />
-          )}
+          {/* Hide nav button — always last in bar */}
+          <button
+            onClick={() => setIsHeaderVisible(false)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800 hover:bg-red-900/60 text-gray-500 hover:text-white text-xs border border-gray-700 transition-colors"
+            title="ซ่อนแถบควบคุม"
+          >
+            <ChevronUp size={13} />
+          </button>
         </div>
       </div>
+
+      {/* Pull-tab when nav is hidden */}
+      {!isHeaderVisible && (
+        <button
+          onClick={() => setIsHeaderVisible(true)}
+          className="absolute top-0 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-0.5 bg-gray-800/90 hover:bg-gray-700 text-cyan-400 text-[11px] font-medium rounded-b-lg border border-t-0 border-gray-700 shadow-md backdrop-blur-md transition-all"
+          title="แสดงแถบควบคุม"
+        >
+          <ChevronDown size={12} /> เมนู
+        </button>
+      )}
+
+      {/* View Mode controls for custom layout or swaps */}
+      {!layout.isEditingLayout && viewMode === 'split' && (
+        <DashboardLayoutToolbar
+          isEditingLayout={layout.isEditingLayout}
+          isDirty={layout.isDirty}
+          isSaving={layout.isSaving}
+          onStartEdit={layout.startEditing}
+          onSave={layout.saveLayout}
+          onCancel={layout.cancelEditing}
+          onReset={layout.resetToDefault}
+          onApplySwapPreset={layout.applySwapPreset}
+          layoutKind={getDashboardLayoutKind(layout.savedLayout)}
+        />
+      )}
 
       {/* Edit Mode Customization Toolbar */}
       {layout.isEditingLayout && viewMode === 'split' && isHeaderVisible && (

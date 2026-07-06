@@ -169,24 +169,24 @@ const FullCalendarModal = ({ isOpen, onClose, currentDate, employees, onColorCha
                       return (
                         <div 
                           key={evt.id} 
-                          className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded truncate border text-white cursor-pointer hover:opacity-90"
+                          className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded border text-white cursor-pointer hover:opacity-90 overflow-hidden min-w-0"
                           style={{ backgroundColor: evt.color + 'cc', borderColor: evt.color }}
                           title={`${evt.employee.name}: ${evt.title}`}
                         >
-                          <span className="font-bold mr-1">{evt.employee.name.substring(0, 3)}:</span>
-                          {evt.title}
+                          <span className="font-bold mr-1 shrink-0">{evt.employee.name.substring(0, 3)}:</span>
+                          <span className="break-words whitespace-normal">{evt.title}</span>
                         </div>
                       );
                     } else {
                       return (
                         <div 
                           key={evt.id} 
-                          className="text-[10px] sm:text-xs truncate cursor-pointer hover:bg-white/10 rounded px-1 flex items-center gap-1"
-                          title={`${evt.employee.name}: ${evt.title} (${formatTime(evt.start)})`}
+                          className="text-[10px] sm:text-xs cursor-pointer hover:bg-white/10 rounded px-1 flex items-start gap-1 overflow-hidden min-w-0"
+                          title={`${evt.employee.name}: ${evt.title}`}
                         >
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: evt.color }}></div>
-                          <span className="text-gray-400 font-medium shrink-0">{format(evt.start, 'HH:mm')}</span>
-                          <span className="text-gray-200 truncate">{evt.title}</span>
+                          <span className="text-gray-400 font-medium shrink-0 whitespace-nowrap">{format(evt.start, 'HH:mm')}</span>
+                          <span className="text-gray-200 break-words whitespace-normal min-w-0">{evt.title}</span>
                         </div>
                       );
                     }
@@ -245,14 +245,14 @@ const FullCalendarModal = ({ isOpen, onClose, currentDate, employees, onColorCha
                   {allDayEvents.map(evt => (
                     <div 
                       key={evt.id} 
-                      className="rounded px-1.5 py-0.5 text-[10px] sm:text-xs border text-white truncate cursor-pointer hover:opacity-90"
-                      style={{ backgroundColor: evt.color + 'cc', borderColor: evt.color }}
-                      title={`${evt.employee.name}: ${evt.title}`}
-                    >
-                      <span className="font-bold mr-1">{evt.employee.name.substring(0,3)}:</span>
-                      {evt.title}
-                    </div>
-                  ))}
+                          className="rounded px-1.5 py-0.5 text-[10px] sm:text-xs border text-white cursor-pointer hover:opacity-90 overflow-hidden min-w-0"
+                          style={{ backgroundColor: evt.color + 'cc', borderColor: evt.color }}
+                          title={`${evt.employee.name}: ${evt.title}`}
+                        >
+                          <span className="font-bold mr-1 shrink-0">{evt.employee.name.substring(0,3)}:</span>
+                          <span className="break-words whitespace-normal">{evt.title}</span>
+                        </div>
+                      ))}
                 </div>
               );
             })}
@@ -296,14 +296,14 @@ const FullCalendarModal = ({ isOpen, onClose, currentDate, employees, onColorCha
                       return (
                         <div 
                           key={evt.id}
-                          className="absolute left-0.5 right-0.5 rounded-md border p-1 overflow-hidden shadow-sm hover:z-30 cursor-pointer transition-all z-20 flex flex-col text-white"
+                          className="absolute left-0.5 right-0.5 rounded-md border p-1 overflow-hidden shadow-sm hover:z-30 cursor-pointer transition-all z-20 flex flex-col text-white min-w-0"
                           style={{ top: `${top}px`, height: `${height}px`, backgroundColor: evt.color + 'cc', borderColor: evt.color }}
-                          title={`${evt.employee.name}: ${evt.title}\n${formatTime(evt.start)} - ${formatTime(evt.end)}\n${evt.location}`}
+                          title={`${evt.employee.name}: ${evt.title}`}
                         >
-                          <div className="font-semibold text-[10px] leading-tight truncate">
+                          <div className="font-semibold text-[10px] leading-tight break-words whitespace-normal">
                             {evt.employee.name.substring(0,3)}: {evt.title}
                           </div>
-                          <div className="text-[9px] opacity-90 truncate mt-px">
+                          <div className="text-[9px] opacity-90 whitespace-nowrap mt-px">
                             {formatTime(evt.start)} - {formatTime(evt.end)}
                           </div>
                         </div>
