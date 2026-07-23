@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, isValidElement, cloneElement } from 'react';
 import DashboardModule from './DashboardModule';
 import ReservedDashboardPanel from './ReservedDashboardPanel';
 import VehicleDashboardPanel from './VehicleDashboardPanel';
@@ -338,7 +338,7 @@ const DashboardGrid = ({
               onLostPointerCaptureDrag={handleLostPointerCaptureDrag}
               onSetSpan={(columnSpan, rowSpan) => handleSetSpan && handleSetSpan(reg.id, columnSpan, rowSpan)}
             >
-              {reg.panel}
+              {React.isValidElement(reg.panel) ? React.cloneElement(reg.panel, { placement }) : reg.panel}
             </DashboardModule>
           </div>
         );

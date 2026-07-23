@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { format, isSameDay, addDays, isToday, startOfWeek } from 'date-fns';
-import { Clock } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
 import { determineEmployeeStatus } from '../utils/employeeStatus';
 
-
-const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, gridCols = 2 }) => {
+const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const avatarFileRef = useRef(null);
@@ -22,8 +21,6 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
     reader.readAsDataURL(file);
   };
   
-  const isCompact = gridCols >= 3;
-
   // Lock starting day to Monday of the selected date's week
   const monday = startOfWeek(currentDate, { weekStartsOn: 1 });
   const workDays = [...Array(5)].map((_, i) => addDays(monday, i));
@@ -48,49 +45,33 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
   }, [employee.email, currentDate, currentDateStr]);
 
   const status = determineEmployeeStatus(employee, events, new Date());
-  const statusText = status.label;
-  const statusColor = {
-    red: 'text-red-400',
-    blue: 'text-blue-400',
-    pink: 'text-pink-400',
-    amber: 'text-amber-400',
-    emerald: 'text-emerald-400',
-  }[status.color] || 'text-emerald-400';
-  const statusBorder = {
-    red: 'border-red-400/50',
-    blue: 'border-blue-400/50',
-    pink: 'border-pink-400/50',
-    amber: 'border-amber-400/50',
-    emerald: 'border-emerald-400/50',
-  }[status.color] || 'border-emerald-400/50';
+  const statusText = status.text;
 
-  // --- Avatar live-status border color ---
+  const statusColor = {
+    red: 'text-red-300 bg-red-950/90 border-red-500/80 shadow-red-950/50',
+    blue: 'text-blue-300 bg-blue-950/90 border-blue-500/80 shadow-blue-950/50',
+    pink: 'text-pink-300 bg-pink-950/90 border-pink-500/80 shadow-pink-950/50',
+    amber: 'text-amber-300 bg-amber-950/90 border-amber-500/80 shadow-amber-950/50',
+    emerald: 'text-emerald-300 bg-emerald-950/90 border-emerald-500/80 shadow-emerald-950/50',
+  }[status.color] || 'text-emerald-300 bg-emerald-950/90 border-emerald-500/80 shadow-emerald-950/50';
+
   const isLiveNow = status.isLiveNow;
 
-  let avatarBorderColor = '#06b6d4'; // default cyan
-  let avatarGlowColor   = 'rgba(6,182,212,0.5)';
+  let avatarBorderColor = '#06b6d4';
   if (isLiveNow || status.source !== 'default') {
-    if (statusColor.includes('red')) {
-      avatarBorderColor = '#f87171'; avatarGlowColor = 'rgba(248,113,113,0.5)';
-    } else if (statusColor.includes('blue')) {
-      avatarBorderColor = '#60a5fa'; avatarGlowColor = 'rgba(96,165,250,0.5)';
-    } else if (statusColor.includes('pink')) {
-      avatarBorderColor = '#f472b6'; avatarGlowColor = 'rgba(244,114,182,0.5)';
-    } else if (statusColor.includes('amber')) {
-      avatarBorderColor = '#fbbf24'; avatarGlowColor = 'rgba(251,191,36,0.5)';
-    } else if (statusColor.includes('emerald')) {
-      avatarBorderColor = '#34d399'; avatarGlowColor = 'rgba(52,211,153,0.5)';
-    }
+    if (statusColor.includes('red')) avatarBorderColor = '#f87171';
+    else if (statusColor.includes('blue')) avatarBorderColor = '#60a5fa';
+    else if (statusColor.includes('pink')) avatarBorderColor = '#f472b6';
+    else if (statusColor.includes('amber')) avatarBorderColor = '#fbbf24';
+    else if (statusColor.includes('emerald')) avatarBorderColor = '#34d399';
   }
 
-
   return (
-    <div className={`flex flex-col md:flex-row ${isCompact ? 'gap-4 p-4' : 'gap-6 p-6'} bg-[#111827] rounded-3xl border border-[#1f2937] shadow-xl hover:shadow-cyan-900/40 hover:border-cyan-500/50 hover:scale-[1.02] hover:z-10 relative transition-all duration-300`}>
+    <div className="flex flex-col sm:flex-row bg-[#0f172a]/95 rounded-2xl border border-slate-800 p-3 shadow-xl hover:border-cyan-500/50 transition-all duration-200 relative overflow-hidden backdrop-blur-sm gap-3 min-w-0 h-full min-h-0 justify-between items-stretch">
       
-      {/* Left Panel: Profile */}
-      <div 
-        className={`flex flex-col items-center justify-center shrink-0 relative group/profile ${isCompact ? 'min-w-[120px] md:w-1/4' : 'min-w-[200px] md:w-1/3'}`}
-      >
+      {/* 👈 LEFT SIDEBAR: AVATAR PHOTO (80px) + FLOATING STATUS + TODAY'S EVENTS */}
+      <div className="flex flex-col items-center justify-between sm:w-44 shrink-0 pb-2 sm:pb-0 sm:pr-3 border-b sm:border-b-0 sm:border-r border-slate-800/80 gap-2 text-center">
+        
         {/* Hidden file input for avatar upload */}
         <input
           ref={avatarFileRef}
@@ -99,144 +80,127 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
           className="hidden"
           onChange={handleAvatarUpload}
         />
-        <div
-          className={`relative transition-transform duration-300 hover:scale-110 ${isCompact ? 'w-16 h-16 mb-2' : 'w-28 h-28 mb-4'} cursor-pointer`}
-          title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
-          onClick={(e) => {
-            e.stopPropagation();
-            avatarFileRef.current?.click();
-          }}
-        >
-          {/* Outer pulsing glow ring — visible only when live */}
-          {isLiveNow && (
-            <span
-              className="absolute inset-0 rounded-full animate-ping"
-              style={{ border: `3px solid ${avatarBorderColor}`, opacity: 0.5 }}
-            />
-          )}
-          <div
-            className="absolute inset-0 rounded-full p-1 transition-all duration-500"
-            style={{
-              border: `3px solid ${avatarBorderColor}`,
-              boxShadow: isLiveNow ? `0 0 14px 3px ${avatarGlowColor}` : 'none',
+
+        {/* 1. Avatar Photo with FLOATING STATUS BADGE ON IMAGE */}
+        <div className="flex flex-col items-center gap-1 w-full shrink-0">
+          <div 
+            className="relative w-18 h-18 sm:w-20 sm:h-20 shrink-0 cursor-pointer group/avatar my-0.5"
+            title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
+            onClick={(e) => {
+              e.stopPropagation();
+              avatarFileRef.current?.click();
             }}
           >
-            <img 
-              src={employee.avatarUrl || `https://ui-avatars.com/api/?name=${employee.name}&background=1f2937&color=fff`} 
-              alt={employee.name}
-              className="w-full h-full rounded-full object-cover bg-[#1f2937]"
-            />
+            <div 
+              className="w-full h-full rounded-full p-1 transition-all overflow-hidden border-2 shadow-lg bg-slate-900"
+              style={{ borderColor: avatarBorderColor }}
+            >
+              <img 
+                src={employee.avatarUrl || `https://ui-avatars.com/api/?name=${employee.name}&background=1f2937&color=fff`} 
+                alt={employee.name}
+                className="w-full h-full rounded-full object-cover bg-slate-800 group-hover/avatar:scale-105 transition-transform duration-300"
+              />
+            </div>
+
+            {/* FLOATING STATUS BADGE ON IMAGE */}
+            <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full border text-[9px] font-bold ${statusColor} backdrop-blur-md shadow-lg whitespace-nowrap max-w-[95%] truncate flex items-center gap-1 z-10`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shrink-0" />
+              <span className="truncate">{statusText}</span>
+            </div>
+
+            {isLiveNow && (
+              <span className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-cyan-400 border-2 border-slate-900 animate-ping shadow-[0_0_8px_#06b6d4]" />
+            )}
           </div>
-          {/* Upload overlay hint on hover */}
-          <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </div>
+
+          {/* Employee Name */}
+          <h2 className="text-sm font-extrabold text-white uppercase tracking-wider truncate w-full mt-0.5">
+            {employee.name}
+          </h2>
         </div>
 
-        {/* Schedule button — below avatar */}
+        {/* 🕒 งานวันนี้ อยู่ใต้ชื่อการ์ดพนักงาน */}
+        <div className="w-full bg-slate-900/90 p-2 rounded-xl border border-slate-800 flex flex-col gap-1 text-left min-w-0 flex-1 justify-between min-h-0 my-0.5">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-0.5 shrink-0">
+            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1">
+              <Clock size={11} /> งานวันนี้
+            </span>
+            <span className="text-[9px] bg-slate-800 text-cyan-300 font-mono px-1 py-0.2 rounded font-bold border border-slate-700">
+              {status.todayEvents.length}
+            </span>
+          </div>
+
+          {status.todayEvents.length === 0 ? (
+            <div className="py-2 text-center text-[10px] text-gray-500 font-medium italic my-auto">
+              ไม่มีงานวันนี้
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-0.5 flex-1 min-h-0">
+              {status.todayEvents.map(ev => {
+                const now = new Date();
+                const start = new Date(ev.start);
+                const end = new Date(ev.end);
+                const isActive = now >= start && now <= end;
+                return (
+                  <div
+                    key={ev.id}
+                    className={`p-1 rounded-lg border text-left flex flex-col gap-0.5 ${
+                      isActive
+                        ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-100 shadow-sm font-bold'
+                        : 'bg-slate-800/70 border-slate-700/60 text-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold truncate">{ev.title}</span>
+                      {isActive && (
+                        <span className="text-[7.5px] font-extrabold bg-cyan-400 text-black px-1 py-0.2 rounded leading-none shrink-0">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[8.5px] text-gray-400 font-mono">
+                      {format(start, 'HH:mm')} – {format(end, 'HH:mm')} น.
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Schedule Action Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             onOpenEmployeeModal(employee, events);
           }}
-          className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-cyan-400 border border-gray-700 hover:border-cyan-500 rounded-full px-2 py-0.5 bg-gray-900 hover:bg-gray-800 transition-all mb-1"
+          className="w-full flex items-center justify-center gap-1 text-[11px] text-cyan-300 bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-700/60 rounded-xl py-1 font-bold transition-all shrink-0 cursor-pointer shadow-sm"
           title="ดูตารางงานทั้งสัปดาห์"
         >
-          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Schedule
+          <CalendarIcon size={12} />
+          <span>ดูตารางสัปดาห์</span>
         </button>
-        <h2 className={`${isCompact ? 'text-base' : 'text-xl'} font-bold text-white uppercase tracking-wider text-center group-hover/profile:text-cyan-400 transition-colors duration-300`}>{employee.name}</h2>
-        <div className={`mt-2 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[10px] font-semibold ${statusBorder} ${statusColor}`}>
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              status.color === 'red'
-                ? 'bg-red-400'
-                : status.color === 'blue'
-                  ? 'bg-blue-400'
-                  : status.color === 'pink'
-                    ? 'bg-pink-400'
-                    : status.color === 'amber'
-                      ? 'bg-amber-400'
-                      : 'bg-emerald-400'
-            }`}
-          />
-          <span className="max-w-[180px] truncate">{statusText}</span>
-        </div>
-
-        {/* Today's Events — always visible, fills bottom of profile panel */}
-        {(() => {
-          const now = new Date();
-          return (
-            <div className="w-full mt-3 flex flex-col gap-1.5 flex-1 min-h-0">
-              {/* Section label */}
-              <div className="flex items-center gap-1 mb-0.5">
-                <Clock className="w-3 h-3 text-cyan-500 shrink-0" />
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  งานวันนี้
-                </span>
-              </div>
-
-              {status.todayEvents.length === 0 ? (
-                <p className="text-[11px] text-gray-600 text-center py-2 border border-dashed border-gray-800 rounded-lg">
-                  ไม่มีงานวันนี้
-                </p>
-              ) : (
-                <div className="flex flex-col gap-1 overflow-y-auto max-h-36 pr-0.5">
-                  {status.todayEvents.map(ev => {
-                    const start = new Date(ev.start);
-                    const end = new Date(ev.end);
-                    const isActive = now >= start && now <= end;
-                    return (
-                      <div
-                        key={ev.id}
-                        className={`w-full text-left rounded-lg px-2 py-1.5 border transition-colors ${
-                          isActive
-                            ? 'bg-cyan-900/20 border-cyan-500/40'
-                            : 'bg-white/[0.03] border-white/[0.06]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {isActive && (
-                            <span className="text-[8px] font-bold bg-cyan-500 text-black rounded px-1 py-0.5 leading-none shrink-0">
-                              LIVE
-                            </span>
-                          )}
-                          <span className={`text-[11px] font-semibold leading-snug break-words ${isActive ? 'text-cyan-300' : 'text-gray-300'}`}>
-                            {ev.title}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 mt-0.5 block">
-                          {format(start, 'HH:mm')} – {format(end, 'HH:mm')}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })()}
       </div>
 
-      {/* Right Panel: 5-Day List */}
-      <div className="flex-1 flex flex-col justify-center gap-2 min-w-0 relative">
-        <div className={`flex flex-col gap-2 transition-opacity duration-200 ${loading ? 'opacity-40' : 'opacity-100'}`}>
+      {/* 👉 RIGHT AREA: 📅 DEDICATED 7-DAY FULLY READABLE CALENDAR SCHEDULE TABLE (ALL 7 DAYS VISIBLE AT A GLANCE) */}
+      <div className="flex-1 flex flex-col gap-1.5 min-w-0 justify-between h-full min-h-0">
+        <div className="flex items-center justify-between px-0.5 pb-0.5 border-b border-slate-800 shrink-0">
+          <span className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+            <CalendarIcon size={13} className="text-cyan-400" /> ตารางปฏิทินสัปดาห์นี้
+          </span>
+        </div>
+
+        {/* 5 Work Days Rows (MON to FRI) */}
+        <div className="flex flex-col gap-1 flex-1 justify-between min-h-0">
           {workDays.map(day => {
             const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
-            // Sort by start time
             dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
             
-            // Get summary text
             let summaryText = '-';
             if (dayEvents.length === 1) {
               summaryText = dayEvents[0].title;
             } else if (dayEvents.length > 1) {
-              summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1} more)`;
+              summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1} งานอื่น)`;
             }
 
             const isCurrentDay = isToday(day);
@@ -248,29 +212,31 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                   e.stopPropagation();
                   onOpenDayModal(employee, day, dayEvents);
                 }}
-                className={`flex items-center text-left w-full ${isCompact ? 'p-2' : 'p-3'} rounded-xl transition-colors group relative overflow-hidden ${
+                className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${
                   isCurrentDay 
-                    ? 'bg-cyan-900/30 border border-cyan-500/50 hover:bg-cyan-800/40' 
-                    : 'bg-[#1f2937]/50 border border-[#1f2937] hover:bg-[#374151]/80 hover:border-cyan-500/50'
+                    ? 'bg-cyan-950/90 border-cyan-500/90 text-cyan-100 font-bold shadow-md' 
+                    : 'bg-slate-900/90 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-gray-200'
                 }`}
                 title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
               >
-                <div className={`${isCompact ? 'w-12 text-[10px]' : 'w-16 text-xs'} shrink-0 flex flex-col font-bold uppercase tracking-widest leading-tight ${isCurrentDay ? 'text-white' : 'text-cyan-400'}`}>
-                  <span>{format(day, 'EEE')}</span>
-                  <span className="text-[10px] text-gray-500">{format(day, 'd/M')}</span>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className={`text-xs font-mono font-bold uppercase w-13 shrink-0 ${isCurrentDay ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                    {format(day, 'EEE d/M')}
+                  </span>
+                  <span className={`text-xs sm:text-[12.5px] truncate font-semibold ${isCurrentDay ? 'text-white font-extrabold' : 'text-gray-100 group-hover:text-cyan-300'}`}>
+                    {summaryText}
+                  </span>
                 </div>
-                <div className={`flex-1 truncate transition-colors font-medium min-w-0 ${isCompact ? 'text-xs' : 'text-sm'} ${isCurrentDay ? 'text-cyan-300' : 'text-gray-300 group-hover:text-white'}`}>
-                  {summaryText}
-                </div>
+
                 {isCurrentDay && (
-                  <div className="absolute right-3 w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0 ml-1 shadow-[0_0_8px_#06b6d4]" />
                 )}
               </button>
             );
           })}
 
-          {/* Saturday & Sunday side-by-side */}
-          <div className="grid grid-cols-2 gap-2 mt-1">
+          {/* Saturday & Sunday Side-by-Side Row (ALWAYS VISIBLE AT BOTTOM) */}
+          <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5">
             {weekendDays.map(day => {
               const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
               dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -279,7 +245,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
               if (dayEvents.length === 1) {
                 summaryText = dayEvents[0].title;
               } else if (dayEvents.length > 1) {
-                summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1} more)`;
+                summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1})`;
               }
 
               const isCurrentDay = isToday(day);
@@ -291,34 +257,20 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                     e.stopPropagation();
                     onOpenDayModal(employee, day, dayEvents);
                   }}
-                  className={`flex items-center text-left w-full p-1.5 rounded-lg transition-colors group relative overflow-hidden ${
+                  className={`flex items-center justify-between text-left px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer ${
                     isCurrentDay 
-                      ? 'bg-cyan-900/30 border border-cyan-500/50 hover:bg-cyan-800/40' 
-                      : 'bg-[#1f2937]/30 border border-[#1f2937] hover:bg-[#374151]/80 hover:border-cyan-500/50'
+                      ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-200 font-bold shadow-sm' 
+                      : 'bg-slate-900/80 border-slate-800/80 text-gray-300 hover:text-white'
                   }`}
-                  title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
                 >
-                  <div className="shrink-0 flex flex-col font-bold uppercase tracking-widest leading-none mr-2 text-[9px]">
-                    <span className={isCurrentDay ? 'text-white' : 'text-purple-400'}>{format(day, 'EEE')}</span>
-                    <span className="text-[8px] text-gray-500">{format(day, 'd/M')}</span>
-                  </div>
-                  <div className="flex-1 truncate transition-colors font-medium min-w-0 text-[10px] text-gray-400 group-hover:text-white">
-                    {summaryText}
-                  </div>
-                  {isCurrentDay && (
-                    <div className="absolute right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-                  )}
+                  <span className="font-mono font-bold text-gray-400 mr-1 shrink-0">{format(day, 'EEE d/M')}</span>
+                  <span className="truncate flex-1 font-medium">{summaryText}</span>
                 </button>
               );
             })}
           </div>
         </div>
-        
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-xl backdrop-blur-[1px]">
-            <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
+
       </div>
 
     </div>
