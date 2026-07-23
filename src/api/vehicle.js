@@ -128,7 +128,7 @@ export function getVehicleTypeMeta(fuelType, modelStr) {
   };
 }
 
-// Calculate days remaining and risk status
+// Calculate days remaining and risk status for fixed target dates (e.g. Tax & Insurance)
 function calculateDateStatus(dateStr) {
   if (!dateStr || dateStr === '-' || dateStr.trim() === '') {
     return { dateStr: '-', daysDiff: null, status: 'normal', text: 'ไม่ระบุ' };
@@ -166,13 +166,17 @@ function calculateDateStatus(dateStr) {
   }
 }
 
-// Calculate next service date (+6 months / 180 days from last service date)
-function calculateNextServiceStatus(lastServiceDateStr) {
-  if (!lastServiceDateStr || lastServiceDateStr === '-' || lastServiceDateStr.trim() === '') {
+// Calculate maintenance due date based on last date and interval in months
+// - Service: Every 6 months, alert 30 days in advance
+// - Wiper Blades: Every 12 months (1 year), alert 30 days in advance
+// - Tires: Every 24 months (2 years), alert 30 days in advance
+// - Battery: Every 24 months (2 years), alert 30 days in advance
+function calculateMaintenanceDueDate(lastDateStr, intervalMonths, label, icon) {
+  if (!lastDateStr || lastDateStr === '-' || lastDateStr.trim() === '') {
     return null;
   }
 
-  const parts = lastServiceDateStr.trim().split('/');
+  const parts = lastDateStr.trim().split('/');
   if (parts.length < 3) return null;
 
   const day = parseInt(parts[0], 10);
@@ -183,39 +187,38 @@ function calculateNextServiceStatus(lastServiceDateStr) {
   if (year > 2400) year -= 543;
 
   const lastDate = new Date(year, month, day);
-  // Add 6 months for next estimated service
-  const nextDate = new Date(lastDate);
-  nextDate.setMonth(nextDate.getMonth() + 6);
+  const dueDate = new Date(lastDate);
+  dueDate.setMonth(dueDate.getMonth() + intervalMonths);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const diffTime = nextDate.getTime() - today.getTime();
+  const diffTime = dueDate.getTime() - today.getTime();
   const daysDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  const formatStr = `${String(nextDate.getDate()).padStart(2, '0')}/${String(nextDate.getMonth() + 1).padStart(2, '0')}/${nextDate.getFullYear()}`;
+  const formatStr = `${String(dueDate.getDate()).padStart(2, '0')}/${String(dueDate.getMonth() + 1).padStart(2, '0')}/${dueDate.getFullYear()}`;
 
   if (daysDiff < 0) {
     return {
-      status: 'warning',
-      nextDateStr: formatStr,
+      status: 'danger',
+      dueDateStr: formatStr,
       daysDiff,
-      message: `🛠️ เลยกำหนดเช็คระยะถัดไปแล้ว (คาดการณ์เมื่อ ${formatStr})`
+      message: `${icon} ${label} เลยกำหนดเปลี่ยนแล้ว (เกิน ${Math.abs(daysDiff)} วัน)`
     };
   } else if (daysDiff <= 30) {
     return {
       status: 'warning',
-      nextDateStr: formatStr,
+      dueDateStr: formatStr,
       daysDiff,
-      message: `🛠️ ครบรอบเช็คระยะถัดไปในอีก ${daysDiff} วัน (ประมาณ ${formatStr})`
+      message: `${icon} ${label} ใกล้ถึงรอบเปลี่ยนในอีก ${daysDiff} วัน (${formatStr})`
     };
   }
 
   return {
     status: 'normal',
-    nextDateStr: formatStr,
+    dueDateStr: formatStr,
     daysDiff,
-    message: `เช็คระยะถัดไปประมาณ ${formatStr}`
+    message: `${icon} ${label} กำหนดถัดไปประมาณ ${formatStr}`
   };
 }
 
@@ -289,14 +292,26 @@ export async function fetchVehicleData() {
       const note = getValue(row, noteIdx, '');
 
       const typeMeta = getVehicleTypeMeta(fuelType, model);
+
+      // Evaluate document statuses
       const taxStatus = calculateDateStatus(taxExpireStr);
       const insuranceStatus = calculateDateStatus(insuranceExpireStr);
-      const nextServiceStatus = calculateNextServiceStatus(lastServiceDate);
+
+      // Evaluate maintenance statuses (with exact rules requested by user):
+      // 1. Service: Every 6 months, 30 days advance alert
+      // 2. Wiper blades: Every 12 months (1 year), 30 days advance alert
+      // 3. Tires: Every 24 months (2 years), 30 days advance alert
+      // 4. Battery: Every 24 months (2 years), 30 days advance alert
+      const serviceAlert = calculateMaintenanceDueDate(lastServiceDate, 6, 'เช็คระยะ', '🛠️');
+      const wiperAlert = calculateMaintenanceDueDate(wiperDate, 12, 'ยางปัดน้ำฝน', '🌧️');
+      const tireAlert = calculateMaintenanceDueDate(tireDate, 24, 'ยางรถยนต์', '🛞');
+      const batteryAlert = calculateMaintenanceDueDate(batteryDate, 24, 'แบตเตอรี่', '🔋');
 
       // Determine overall risk & detailed risk causes
       const riskReasons = [];
       let overallStatus = 'normal';
 
+      // 1. Tax / License Status
       if (taxStatus.status === 'danger') {
         overallStatus = 'danger';
         riskReasons.push({ type: 'tax', level: 'danger', message: `พ.ร.บ./ภาษี หมดอายุแล้ว (${taxStatus.dateStr})` });
@@ -305,6 +320,7 @@ export async function fetchVehicleData() {
         riskReasons.push({ type: 'tax', level: 'warning', message: `พ.ร.บ./ภาษี ใกล้หมดอายุ (เหลือ ${taxStatus.daysDiff} วัน)` });
       }
 
+      // 2. Insurance Status
       if (insuranceStatus.status === 'danger') {
         overallStatus = 'danger';
         riskReasons.push({ type: 'insurance', level: 'danger', message: `ประกันภัย หมดอายุแล้ว (${insuranceStatus.dateStr})` });
@@ -313,11 +329,35 @@ export async function fetchVehicleData() {
         riskReasons.push({ type: 'insurance', level: 'warning', message: `ประกันภัย ใกล้หมดอายุ (เหลือ ${insuranceStatus.daysDiff} วัน)` });
       }
 
-      if (nextServiceStatus && nextServiceStatus.status === 'warning') {
-        if (overallStatus !== 'danger') overallStatus = 'warning';
-        riskReasons.push({ type: 'service', level: 'warning', message: nextServiceStatus.message });
+      // 3. Service Alert
+      if (serviceAlert && (serviceAlert.status === 'danger' || serviceAlert.status === 'warning')) {
+        if (serviceAlert.status === 'danger') overallStatus = 'danger';
+        else if (overallStatus !== 'danger') overallStatus = 'warning';
+        riskReasons.push({ type: 'service', level: serviceAlert.status, message: serviceAlert.message });
       }
 
+      // 4. Wiper Alert
+      if (wiperAlert && (wiperAlert.status === 'danger' || wiperAlert.status === 'warning')) {
+        if (wiperAlert.status === 'danger') overallStatus = 'danger';
+        else if (overallStatus !== 'danger') overallStatus = 'warning';
+        riskReasons.push({ type: 'wiper', level: wiperAlert.status, message: wiperAlert.message });
+      }
+
+      // 5. Tire Alert
+      if (tireAlert && (tireAlert.status === 'danger' || tireAlert.status === 'warning')) {
+        if (tireAlert.status === 'danger') overallStatus = 'danger';
+        else if (overallStatus !== 'danger') overallStatus = 'warning';
+        riskReasons.push({ type: 'tire', level: tireAlert.status, message: tireAlert.message });
+      }
+
+      // 6. Battery Alert
+      if (batteryAlert && (batteryAlert.status === 'danger' || batteryAlert.status === 'warning')) {
+        if (batteryAlert.status === 'danger') overallStatus = 'danger';
+        else if (overallStatus !== 'danger') overallStatus = 'warning';
+        riskReasons.push({ type: 'battery', level: batteryAlert.status, message: batteryAlert.message });
+      }
+
+      // 7. Custom Note
       if (note && note !== '-' && note.trim().length > 0) {
         riskReasons.push({ type: 'note', level: 'info', message: note });
       }
@@ -335,7 +375,10 @@ export async function fetchVehicleData() {
         imageUrl,
         typeMeta,
         lastServiceDate,
-        nextServiceStatus,
+        nextServiceStatus: serviceAlert,
+        wiperAlert,
+        tireAlert,
+        batteryAlert,
         lastMileage,
         tireDate,
         wiperDate,
