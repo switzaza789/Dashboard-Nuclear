@@ -7,7 +7,7 @@ import FullCalendarModal from './components/FullCalendarModal';
 import EditProfileModal from './components/EditProfileModal';
 import Toast from './components/Toast';
 import { startOfWeek, addDays, subDays } from 'date-fns';
-import { Calendar as CalendarIcon, Columns, Maximize2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, Columns, Maximize2, ChevronUp, ChevronDown, Settings } from 'lucide-react';
 
 import TapoDashboard from './components/TapoDashboard';
 import { useDashboardLayout } from './hooks/useDashboardLayout';
@@ -128,6 +128,32 @@ function App() {
   const prevDay = () => setCurrentDate(subDays(currentDate, 1));
   const goToday = () => setCurrentDate(new Date());
 
+  const [hiddenEmployeeEmails, setHiddenEmployeeEmails] = useState(() => {
+    const saved = localStorage.getItem('hidden_employee_emails');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const toggleEmployeeVisibility = (email) => {
+    setHiddenEmployeeEmails(prev => {
+      const next = prev.includes(email)
+        ? prev.filter(e => e !== email)
+        : [...prev, email];
+      localStorage.setItem('hidden_employee_emails', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const showAllEmployees = () => {
+    setHiddenEmployeeEmails([]);
+    localStorage.setItem('hidden_employee_emails', JSON.stringify([]));
+  };
+
+  const hideAllEmployees = () => {
+    const allEmails = processedEmployees.map(emp => emp.email);
+    setHiddenEmployeeEmails(allEmails);
+    localStorage.setItem('hidden_employee_emails', JSON.stringify(allEmails));
+  };
+
   const processedEmployees = React.useMemo(() => {
     return employees.map((emp, index) => {
       const custom = customProfiles[emp.email] || {};
@@ -141,13 +167,17 @@ function App() {
     });
   }, [employees, customProfiles]);
 
+  const visibleEmployees = React.useMemo(() => {
+    return processedEmployees.filter(emp => !hiddenEmployeeEmails.includes(emp.email));
+  }, [processedEmployees, hiddenEmployeeEmails]);
+
   const teamOverview = React.useMemo(() => {
     let available = 0;
     let onLeave = 0;
     let wfh = 0;
     let busy = 0;
     
-    processedEmployees.forEach(emp => {
+    visibleEmployees.forEach(emp => {
       const s = (emp.customStatus || '').toLowerCase();
       if (!s) available++;
       else if (s.includes('ลา') || s.includes('sick') || s.includes('leave') || s.includes('vacation')) onLeave++;
@@ -156,7 +186,7 @@ function App() {
     });
     
     return { available, onLeave, wfh, busy };
-  }, [processedEmployees]);
+  }, [visibleEmployees]);
 
   const handleOpenDayModal = (employee, date, dayEvents) => {
     setModalData({ date, events: dayEvents, employeeName: employee.name, employeeEmail: employee.email });
@@ -183,40 +213,33 @@ function App() {
             Dashboard
           </div>
           
-          <div className="flex items-center gap-2 bg-gray-800/50 p-1 rounded-lg border border-gray-700">
+          <div className="flex items-center gap-2">
+            {!layout.isEditingLayout && (
+              <button
+                onClick={layout.startEditing}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-all shadow-[0_0_12px_rgba(6,182,212,0.3)] border border-cyan-400/50 cursor-pointer"
+                title="ปรับแต่งตำแหน่งการ์ดบอร์ด"
+                aria-label="Customize dashboard layout"
+              >
+                <Settings size={13} />
+                <span>ปรับแต่งบอร์ด</span>
+              </button>
+            )}
+
             <button 
-              onClick={() => handleViewModeChange('split')}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'split' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+              onClick={() => {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen().catch(() => {});
+                } else {
+                  document.exitFullscreen();
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium border border-gray-700 transition-colors cursor-pointer"
+              title="ขยายเบราว์เซอร์เต็มจอ"
             >
-              <Columns size={13} /> Split
-            </button>
-            <button 
-              onClick={() => handleViewModeChange('tapo')}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'tapo' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
-            >
-              <Maximize2 size={13} /> Tapo
-            </button>
-            <button 
-              onClick={() => handleViewModeChange('calendar')}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors ${viewMode === 'calendar' ? 'bg-cyan-600 text-white shadow' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
-            >
-              <CalendarIcon size={13} /> Calendar
+              <Maximize2 size={13} /> Fullscreen
             </button>
           </div>
-
-          <button 
-            onClick={() => {
-              if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(() => {});
-              } else {
-                document.exitFullscreen();
-              }
-            }}
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium border border-gray-700 transition-colors cursor-pointer"
-            title="ขยายเบราว์เซอร์เต็มจอ"
-          >
-            <Maximize2 size={13} /> Fullscreen
-          </button>
 
           {/* Hide nav button — always last in bar */}
           <button
@@ -291,7 +314,7 @@ function App() {
             cancelEditing={layout.cancelEditing}
             calendarPanel={
               <CalendarDashboardPanel
-                data={{ processedEmployees, teamOverview, loading, currentDate, currentTimeReal }}
+                data={{ processedEmployees, visibleEmployees, hiddenEmployeeEmails, teamOverview, loading, currentDate, currentTimeReal }}
                 actions={{
                   setCurrentDate,
                   goToday,
@@ -304,7 +327,10 @@ function App() {
                   onOpenEditProfileModal: (employee) => {
                     setEditingEmployee(employee);
                     setEditProfileModalOpen(true);
-                  }
+                  },
+                  toggleEmployeeVisibility,
+                  showAllEmployees,
+                  hideAllEmployees
                 }}
                 isSplitView={true}
               />
@@ -334,7 +360,7 @@ function App() {
         {viewMode === 'calendar' && (
           <div className="flex-1 h-full overflow-y-auto custom-scrollbar">
             <CalendarDashboardPanel
-              data={{ processedEmployees, teamOverview, loading, currentDate, currentTimeReal }}
+              data={{ processedEmployees, visibleEmployees, hiddenEmployeeEmails, teamOverview, loading, currentDate, currentTimeReal }}
               actions={{
                 setCurrentDate,
                 goToday,
@@ -347,7 +373,10 @@ function App() {
                 onOpenEditProfileModal: (employee) => {
                   setEditingEmployee(employee);
                   setEditProfileModalOpen(true);
-                }
+                },
+                toggleEmployeeVisibility,
+                showAllEmployees,
+                hideAllEmployees
               }}
               isSplitView={false}
             />

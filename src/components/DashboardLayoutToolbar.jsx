@@ -12,35 +12,7 @@ const DashboardLayoutToolbar = ({
   layoutKind,
 }) => {
   if (!isEditingLayout) {
-    const isSwapDisabled = layoutKind === 'custom';
-    
-    return (
-      <div className="flex items-center gap-3 shrink-0">
-        <button
-          onClick={onApplySwapPreset}
-          disabled={isSwapDisabled}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-            isSwapDisabled
-              ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-[#1f2937]/50 border-gray-700 text-cyan-400 hover:text-white hover:bg-gray-700'
-          }`}
-          title={isSwapDisabled ? 'Swap Preset is unavailable with custom layouts. Reset to default to enable.' : 'สลับฝั่งแผงควบคุม (Swap Preset)'}
-          aria-label={isSwapDisabled ? 'Swap Preset unavailable' : 'Swap Preset'}
-        >
-          <ArrowRightLeft size={14} />
-          <span>สลับฝั่ง Preset</span>
-        </button>
-
-        <button
-          onClick={onStartEdit}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] border border-cyan-400/50 cursor-pointer"
-          aria-label="Customize dashboard layout"
-        >
-          <Settings size={14} />
-          <span>ปรับแต่งบอร์ด</span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

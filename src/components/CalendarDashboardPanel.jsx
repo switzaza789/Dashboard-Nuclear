@@ -4,8 +4,8 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, Settings, X
 import EmployeeCard from './EmployeeCard';
 
 const CalendarDashboardPanel = ({
-  data: { processedEmployees, teamOverview, loading, currentDate, currentTimeReal },
-  actions: { setCurrentDate, goToday, prevDay, nextDay, setFullCalendarOpen, setCompareModalOpen, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal },
+  data: { processedEmployees, visibleEmployees = [], hiddenEmployeeEmails = [], teamOverview, loading, currentDate, currentTimeReal },
+  actions: { setCurrentDate, goToday, prevDay, nextDay, setFullCalendarOpen, setCompareModalOpen, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, toggleEmployeeVisibility, showAllEmployees, hideAllEmployees },
   isSplitView = true,
 }) => {
   const dateInputRef = useRef(null);
@@ -199,6 +199,60 @@ const CalendarDashboardPanel = ({
               </div>
             </div>
 
+            {/* Employee Card Visibility Settings */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  ซ่อน / แสดงการ์ดพนักงาน
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={showAllEmployees}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold bg-cyan-950/40 hover:bg-cyan-900/60 px-2 py-0.5 rounded border border-cyan-800/50 transition-colors"
+                  >
+                    แสดงทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    onClick={hideAllEmployees}
+                    className="text-[10px] text-gray-400 hover:text-gray-300 font-semibold bg-gray-800 hover:bg-gray-700 px-2 py-0.5 rounded border border-gray-700 transition-colors"
+                  >
+                    ซ่อนทั้งหมด
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1 max-h-44 overflow-y-auto custom-scrollbar bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                {processedEmployees.map(emp => {
+                  const isVisible = !hiddenEmployeeEmails.includes(emp.email);
+                  return (
+                    <label
+                      key={emp.id}
+                      className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-800/80 cursor-pointer transition-colors text-xs select-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: emp.calendarColor }}
+                        />
+                        <span className={`font-medium ${isVisible ? 'text-gray-200' : 'text-gray-500 line-through'}`}>
+                          {emp.name}
+                        </span>
+                        <span className="text-[10px] text-gray-500">({emp.department})</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isVisible}
+                        onChange={() => toggleEmployeeVisibility(emp.email)}
+                        className="w-4 h-4 rounded accent-cyan-500 cursor-pointer shrink-0"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Advanced Views */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -265,8 +319,16 @@ const CalendarDashboardPanel = ({
             <div className="w-8 h-8 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>
             <p className="text-gray-400 text-sm">Loading team schedule...</p>
           </div>
-        ) : processedEmployees.length === 0 ? (
-          <div className="text-center py-20 text-gray-500 text-sm">No employees found.</div>
+        ) : visibleEmployees.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-sm gap-2">
+            <span>ไม่มีการ์ดพนักงานถูกเลือก (ถูกซ่อนไว้ทั้งหมด)</span>
+            <button
+              onClick={showAllEmployees}
+              className="text-xs text-cyan-400 hover:underline font-medium"
+            >
+              คลิกที่นี่เพื่อแสดงพนักงานทั้งหมด
+            </button>
+          </div>
         ) : (
           <div 
             className="grid gap-4"
@@ -276,7 +338,7 @@ const CalendarDashboardPanel = ({
                 : 'repeat(auto-fit, minmax(320px, 1fr))'
             }}
           >
-            {processedEmployees.map(emp => (
+            {visibleEmployees.map(emp => (
               <EmployeeCard 
                 key={emp.id} 
                 employee={emp} 

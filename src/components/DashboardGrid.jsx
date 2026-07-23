@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import DashboardModule from './DashboardModule';
 import ReservedDashboardPanel from './ReservedDashboardPanel';
+import VehicleDashboardPanel from './VehicleDashboardPanel';
 
 const DashboardGrid = ({
   savedLayout,
@@ -237,7 +238,7 @@ const DashboardGrid = ({
     { id: 'reserved-3', title: 'Reserved Slot 3', panel: <ReservedDashboardPanel slotNumber={3} /> },
     { id: 'reserved-4', title: 'Reserved Slot 4', panel: <ReservedDashboardPanel slotNumber={4} /> },
     { id: 'reserved-5', title: 'Reserved Slot 5', panel: <ReservedDashboardPanel slotNumber={5} /> },
-    { id: 'reserved-6', title: 'Reserved Slot 6', panel: <ReservedDashboardPanel slotNumber={6} /> },
+    { id: 'reserved-6', title: 'Vehicle Fleet Dashboard', panel: <VehicleDashboardPanel slotNumber={6} /> },
   ];
 
   if (isStacked) {
