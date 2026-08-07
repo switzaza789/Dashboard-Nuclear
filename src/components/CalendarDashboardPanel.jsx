@@ -21,7 +21,7 @@ const CalendarDashboardPanel = ({
 
     const interval = setInterval(() => {
       setScheduleViewMode(prev => (prev === 'weekly' ? 'daily' : 'weekly'));
-    }, 15000);
+    }, 60000); // สลับมุมมองทุกๆ 1 นาที (60 วินาที)
 
     return () => clearInterval(interval);
   }, [isAutoPlay, isTvMode]);
