@@ -12,30 +12,26 @@ const CustomLegend = ({ payload, onHover, type }) => {
   if (!payload || payload.length === 0) return null;
   
   return (
-    <div className="custom-legend">
+    <div className="custom-legend flex flex-wrap gap-1.5 justify-center mb-1.5">
       {payload.map((entry, index) => {
         const valText = type === 'temp' ? entry.latestTemp : entry.latestHum;
         return (
           <div 
             key={`item-${index}`} 
-            className="custom-legend-item"
+            className="custom-legend-item px-2 py-1 rounded-lg border flex items-center gap-1.5 text-[11px] font-bold cursor-pointer transition-all shrink-0"
             onMouseEnter={() => onHover && onHover(entry.id)}
             onMouseLeave={() => onHover && onHover(null)}
             style={{ 
-              boxShadow: entry.isHovered ? `0 0 12px ${entry.color}` : '0 4px 12px rgba(0, 0, 0, 0.15)',
-              borderColor: entry.isHovered ? entry.color : 'rgba(255, 255, 255, 0.1)',
-              cursor: 'pointer',
-              transform: entry.isHovered ? 'translateY(-2px)' : 'none'
+              boxShadow: entry.isHovered ? `0 0 12px ${entry.color}` : 'none',
+              borderColor: entry.isHovered ? entry.color : 'rgba(255, 255, 255, 0.15)',
+              backgroundColor: entry.isHovered ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.7)',
+              transform: entry.isHovered ? 'scale(1.02)' : 'none'
             }}
           >
-            <div className="legend-text-container">
-              <span className="legend-name">{entry.icon} {entry.name}</span>
-              <span className="legend-axis">{valText}</span>
-            </div>
-            <svg width="26" height="12" viewBox="0 0 32 14" style={{ flexShrink: 0 }}>
-              <path strokeWidth={entry.isHovered ? "4" : "3"} fill="none" stroke={entry.color} d="M0,7 h12 m8,0 h12" />
-              <circle cx="16" cy="7" r={entry.isHovered ? "5" : "4"} fill="var(--bg-dark)" stroke={entry.color} strokeWidth="3" />
-            </svg>
+            <span style={{ color: entry.color }} className="font-bold flex items-center gap-1">
+              {entry.icon} {entry.name}:
+            </span>
+            <span className="font-mono text-white text-[12px] font-extrabold">{valText}</span>
           </div>
         );
       })}
@@ -43,7 +39,7 @@ const CustomLegend = ({ payload, onHover, type }) => {
   );
 };
 
-export default function TapoDashboard({ viewMode, displayMode = 'full', onToggleFullscreen }) {
+export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode = false, onToggleFullscreen }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -319,6 +315,11 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', onToggle
 
     return { tempTicks: tTicks, humTicks: hTicks };
   }, [latestValues, visibleRooms]);
+  const latestTimeStr = useMemo(() => {
+    if (!filteredData || filteredData.length === 0) return 'N/A';
+    const last = filteredData[filteredData.length - 1];
+    return last.rawDate || last.time || 'N/A';
+  }, [filteredData]);
 
   if (loading && data.length === 0) {
     return <div className="loading">Loading dashboard data from Google Sheets...</div>;
@@ -345,10 +346,15 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', onToggle
   return (
     <div className={`tapo-dashboard-container w-full h-full ${viewMode === 'split' ? 'is-split-view' : ''} ${displayMode === 'compact' ? 'is-compact-mode' : ''}`}>
       <div className="dashboard-content">
-        <div className="dashboard-header flex items-center justify-between px-4 py-2 border-b border-gray-800/40" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ textAlign: 'left' }}>
-            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>Tapo Central Dashboard</h2>
-            <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>Real-time Environment Monitoring & Analytics</p>
+        <div className="dashboard-header flex items-center justify-between px-3 py-1.5 border-b border-gray-800/40" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>Tapo Central Dashboard</h2>
+            {latestTimeStr !== 'N/A' && (
+              <span className="px-2 py-0.5 rounded-lg bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-[11px] sm:text-xs font-bold font-mono shadow-sm flex items-center gap-1">
+                <Clock size={12} className="text-cyan-400" />
+                <span>อัปเดตล่าสุด: {latestTimeStr}</span>
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginRight: '28px' }}>
             <button
@@ -631,7 +637,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', onToggle
                         dataKey={`${room.id}_temp`} 
                         name={`${room.icon} ${room.sheetName}`} 
                         stroke={room.color} 
-                        strokeWidth={isHovered ? 2.5 : 1.5} 
+                        strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
                         strokeOpacity={isOthersHovered ? 0.15 : 1}
                         style={{
                           filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',
@@ -709,7 +715,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', onToggle
                         dataKey={`${room.id}_hum`} 
                         name={`${room.icon} ${room.sheetName}`} 
                         stroke={room.color} 
-                        strokeWidth={isHovered ? 2.5 : 1.5} 
+                        strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
                         strokeOpacity={isOthersHovered ? 0.15 : 1}
                         style={{
                           filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',

@@ -167,25 +167,25 @@ const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, ro
 
       {/* 📊 RISK SUMMARY COUNTER BAR */}
       {!loading && !selectedVehicle && (
-        <div className="flex items-center justify-between gap-1 px-2.5 py-1 bg-slate-950/80 border border-slate-800 rounded-lg mb-2 shrink-0 shadow-inner text-[10px]">
+        <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 bg-slate-950/90 border border-slate-700/80 rounded-xl mb-2 shrink-0 shadow-md text-xs">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-gray-300">สรุปความเสี่ยง:</span>
+            <span className="font-extrabold text-gray-200">สรุปความเสี่ยง:</span>
             {riskSummary.danger > 0 && (
-              <span className="px-2 py-0.5 rounded bg-red-950/90 border border-red-500/50 text-red-300 font-bold flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-lg bg-red-950/90 border border-red-500 text-red-200 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(239,68,68,0.4)]">
                 🔴 หมดอายุ {riskSummary.danger} คัน
               </span>
             )}
             {riskSummary.warning > 0 && (
-              <span className="px-2 py-0.5 rounded bg-amber-950/90 border border-amber-500/50 text-amber-300 font-bold flex items-center gap-1">
+              <span className="px-2.5 py-0.5 rounded-lg bg-amber-950/90 border border-amber-500 text-amber-200 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(245,158,11,0.4)]">
                 🟡 ใกล้เตือน {riskSummary.warning} คัน
               </span>
             )}
-            <span className="px-2 py-0.5 rounded bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 font-bold flex items-center gap-1">
+            <span className="px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500 text-emerald-200 font-extrabold flex items-center gap-1">
               🟢 ปกติ {riskSummary.normal} คัน
             </span>
           </div>
 
-          <span className="text-[10px] text-gray-400 font-mono">
+          <span className="text-xs text-gray-300 font-mono font-bold">
             รวม {riskSummary.total} คัน
           </span>
         </div>
@@ -444,22 +444,23 @@ const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, ro
                       v.riskReasons.map((reason, rIdx) => (
                         <div
                           key={rIdx}
-                          className={`${layoutConfig.badgeTextSize} px-1.5 py-1 rounded-lg font-bold flex items-start gap-1 border shadow-sm ${reason.level === 'danger'
-                              ? 'bg-red-950/95 border-red-500/90 text-red-100 shadow-[0_0_10px_rgba(239,68,68,0.35)] font-extrabold'
-                              : reason.level === 'warning'
-                                ? 'bg-amber-950/95 border-amber-500/80 text-amber-100 shadow-amber-950/50'
-                                : 'bg-slate-800 border-slate-700 text-slate-200'
-                            }`}
+                          className="text-[11px] sm:text-[11.5px] px-2 py-1.5 rounded-lg font-extrabold flex items-start gap-1.5 border shadow-md"
+                          style={{
+                            backgroundColor: reason.level === 'danger' ? 'rgba(69, 10, 10, 0.95)' : reason.level === 'warning' ? 'rgba(69, 26, 3, 0.95)' : 'rgba(30, 41, 59, 0.9)',
+                            borderColor: reason.level === 'danger' ? '#ef4444' : reason.level === 'warning' ? '#f59e0b' : '#475569',
+                            color: reason.level === 'danger' ? '#fef2f2' : reason.level === 'warning' ? '#fffbeb' : '#e2e8f0',
+                            boxShadow: reason.level === 'danger' ? '0 0 12px rgba(239, 68, 68, 0.45)' : reason.level === 'warning' ? '0 0 12px rgba(245, 158, 11, 0.35)' : 'none'
+                          }}
                         >
-                          {reason.level === 'danger' && <AlertCircle size={11} className="text-red-400 shrink-0 mt-0.5 animate-pulse" />}
-                          {reason.level === 'warning' && <AlertTriangle size={11} className="text-amber-400 shrink-0 mt-0.5" />}
-                          {reason.level === 'info' && <Info size={11} className="text-cyan-400 shrink-0 mt-0.5" />}
-                          <span className="leading-tight break-words">{reason.message}</span>
+                          {reason.level === 'danger' && <AlertCircle size={13} className="text-red-400 shrink-0 mt-0.5 animate-pulse" />}
+                          {reason.level === 'warning' && <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />}
+                          {reason.level === 'info' && <Info size={13} className="text-cyan-400 shrink-0 mt-0.5" />}
+                          <span className="leading-snug break-words">{reason.message}</span>
                         </div>
                       ))
                     ) : (
-                      <div className={`${layoutConfig.badgeTextSize} text-emerald-400 font-semibold px-1.5 py-1 bg-emerald-950/40 border border-emerald-800/50 rounded-lg flex items-center gap-1`}>
-                        <CheckCircle2 size={11} /> สถานะและเอกสารปกติ
+                      <div className="text-[11px] text-emerald-400 font-extrabold px-2 py-1 bg-emerald-950/50 border border-emerald-700/60 rounded-lg flex items-center gap-1.5">
+                        <CheckCircle2 size={12} /> สถานะและเอกสารปกติ
                       </div>
                     )}
                   </div>

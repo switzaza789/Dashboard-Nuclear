@@ -214,22 +214,22 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                 }}
                 className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${
                   isCurrentDay 
-                    ? 'bg-cyan-950/90 border-cyan-500/90 text-cyan-100 font-bold shadow-md' 
+                    ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[1.01]' 
                     : 'bg-slate-900/90 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-gray-200'
                 }`}
                 title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <span className={`text-xs font-mono font-bold uppercase w-13 shrink-0 ${isCurrentDay ? 'text-cyan-300' : 'text-cyan-400'}`}>
+                  <span className={`font-mono font-extrabold uppercase w-14 shrink-0 ${isCurrentDay ? 'text-sm text-cyan-300 drop-shadow' : 'text-xs text-cyan-400'}`}>
                     {format(day, 'EEE d/M')}
                   </span>
-                  <span className={`text-xs sm:text-[12.5px] truncate font-semibold ${isCurrentDay ? 'text-white font-extrabold' : 'text-gray-100 group-hover:text-cyan-300'}`}>
+                  <span className={`truncate ${isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'}`}>
                     {summaryText}
                   </span>
                 </div>
 
                 {isCurrentDay && (
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0 ml-1 shadow-[0_0_8px_#06b6d4]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shrink-0 ml-1 shadow-[0_0_10px_#06b6d4]" />
                 )}
               </button>
             );

@@ -1,6 +1,6 @@
 import { getDefaultDashboardLayout, validateDashboardLayout } from './dashboardLayout';
 
-const STORAGE_KEY = 'tapo_calendar_dashboard_layout_v1';
+const STORAGE_KEY = 'tapo_calendar_dashboard_layout_v2';
 
 export const loadStoredDashboardLayout = () => {
   try {

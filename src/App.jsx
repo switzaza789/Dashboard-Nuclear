@@ -7,7 +7,7 @@ import FullCalendarModal from './components/FullCalendarModal';
 import EditProfileModal from './components/EditProfileModal';
 import Toast from './components/Toast';
 import { startOfWeek, addDays, subDays } from 'date-fns';
-import { Calendar as CalendarIcon, Columns, Maximize2, ChevronUp, ChevronDown, Settings } from 'lucide-react';
+import { Calendar as CalendarIcon, Columns, Maximize2, ChevronUp, ChevronDown, Settings, Tv, Play, Pause } from 'lucide-react';
 
 import TapoDashboard from './components/TapoDashboard';
 import { useDashboardLayout } from './hooks/useDashboardLayout';
@@ -27,10 +27,51 @@ function App() {
   });
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
 
+  const [isTvMode, setIsTvMode] = useState(() => {
+    return localStorage.getItem('app_tv_mode') === 'true';
+  });
+
+  const [isAutoPlay, setIsAutoPlay] = useState(() => {
+    return localStorage.getItem('app_auto_play') === 'true';
+  });
+
   // Sync state to local storage
   useEffect(() => {
     localStorage.setItem('app_view_mode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    localStorage.setItem('app_tv_mode', isTvMode);
+  }, [isTvMode]);
+
+  useEffect(() => {
+    localStorage.setItem('app_auto_play', isAutoPlay);
+  }, [isAutoPlay]);
+
+  // Hands-free Auto-Scroll effect for TV Meeting display
+  useEffect(() => {
+    if (!isAutoPlay) return;
+
+    let direction = 1;
+    const interval = setInterval(() => {
+      const scrollContainers = document.querySelectorAll('.custom-scrollbar');
+      scrollContainers.forEach(container => {
+        if (!container) return;
+        const maxScroll = container.scrollHeight - container.clientHeight;
+        if (maxScroll <= 5) return;
+
+        if (container.scrollTop >= maxScroll - 5) {
+          direction = -1;
+        } else if (container.scrollTop <= 5) {
+          direction = 1;
+        }
+
+        container.scrollBy({ top: direction * 1.5, behavior: 'smooth' });
+      });
+    }, 120);
+
+    return () => clearInterval(interval);
+  }, [isAutoPlay]);
 
   // --- Calendar State ---
   const [employees, setEmployees] = useState([]);
@@ -199,7 +240,7 @@ function App() {
   };
 
   return (
-    <div className="h-screen w-full bg-[#030712] text-gray-200 font-sans flex flex-col overflow-hidden relative app-viewport-container">
+    <div className={`h-screen w-full bg-[#030712] text-gray-200 font-sans flex flex-col overflow-hidden relative app-viewport-container ${isTvMode ? 'is-tv-mode' : ''}`}>
       
       {/* Visually Hidden Aria Live Announcements for Accessibility */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -214,6 +255,34 @@ function App() {
           </div>
           
           <div className="flex items-center gap-2">
+            {/* TV Meeting Mode Toggle */}
+            <button
+              onClick={() => setIsTvMode(prev => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
+                isTvMode 
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.5)]' 
+                  : 'bg-gray-800 hover:bg-gray-700 text-amber-400 border-gray-700'
+              }`}
+              title="สลับโหมด TV Meeting (ขยายตัวหนังสือ/ตัวเลขขนาดใหญ่พิเศษ เพื่ออ่านชัดเจนระยะไกล)"
+            >
+              <Tv size={14} />
+              <span>{isTvMode ? '📺 TV Mode: เปิด' : '📺 TV Mode'}</span>
+            </button>
+
+            {/* Auto-Scroll Hands-Free Toggle */}
+            <button
+              onClick={() => setIsAutoPlay(prev => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
+                isAutoPlay 
+                  ? 'bg-emerald-600 text-white border-emerald-400 font-extrabold shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
+                  : 'bg-gray-800 hover:bg-gray-700 text-emerald-400 border-gray-700'
+              }`}
+              title="สลับระบบ Auto-Scroll / เลื่อนหน้าจออัตโนมัติ (ไม่ต้องใช้เมาส์)"
+            >
+              {isAutoPlay ? <Pause size={13} /> : <Play size={13} />}
+              <span>{isAutoPlay ? 'Auto-Scroll: เปิด' : 'Auto-Scroll'}</span>
+            </button>
+
             {!layout.isEditingLayout && (
               <button
                 onClick={layout.startEditing}
@@ -339,6 +408,7 @@ function App() {
               <TapoDashboard 
                 viewMode={viewMode} 
                 displayMode="compact" 
+                isTvMode={isTvMode}
                 onToggleFullscreen={() => handleViewModeChange(viewMode === 'tapo' ? 'split' : 'tapo')} 
               />
             }
@@ -351,6 +421,7 @@ function App() {
             <TapoDashboard 
               viewMode={viewMode} 
               displayMode="full" 
+              isTvMode={isTvMode}
               onToggleFullscreen={() => handleViewModeChange('split')} 
             />
           </div>

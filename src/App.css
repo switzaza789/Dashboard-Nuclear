@@ -237,3 +237,38 @@ body.is-dragging-dashboard {
   }
 }
 
+/* ======================================================== */
+/* 📺 TV MEETING PRESENTATION MODE STYLING (VIEW FROM 3-5m) */
+/* ======================================================== */
+.is-tv-mode {
+  font-size: 110%;
+}
+
+.is-tv-mode .dashboard-grid {
+  gap: 16px;
+  padding: 16px;
+}
+
+.is-tv-mode .glass-panel {
+  border-width: 2px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* TV Mode Typography Scaling */
+.is-tv-mode h1,
+.is-tv-mode h2,
+.is-tv-mode h3 {
+  font-size: 1.15em !important;
+}
+
+.is-tv-mode .custom-legend-item {
+  font-size: 13px !important;
+  padding: 6px 12px !important;
+}
+
+.is-tv-mode .recharts-cartesian-axis-tick text {
+  font-size: 12px !important;
+  font-weight: bold !important;
+}
+
+

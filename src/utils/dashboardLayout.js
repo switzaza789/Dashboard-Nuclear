@@ -2,11 +2,11 @@ export const getDefaultDashboardLayout = () => ({
   version: 1,
   placements: {
     calendar: { column: 1, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-5': { column: 1, row: 2, columnSpan: 1, rowSpan: 1 },
-    'reserved-3': { column: 2, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-4': { column: 2, row: 2, columnSpan: 1, rowSpan: 1 },
-    tapo: { column: 3, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-6': { column: 3, row: 2, columnSpan: 1, rowSpan: 1 },
+    'reserved-4': { column: 1, row: 2, columnSpan: 1, rowSpan: 1 },
+    tapo: { column: 2, row: 1, columnSpan: 1, rowSpan: 1 },
+    'reserved-5': { column: 2, row: 2, columnSpan: 1, rowSpan: 1 },
+    'reserved-6': { column: 3, row: 1, columnSpan: 1, rowSpan: 1 },
+    'reserved-3': { column: 3, row: 2, columnSpan: 1, rowSpan: 1 },
   },
 });
 
@@ -14,11 +14,11 @@ export const getSwappedDashboardLayout = () => ({
   version: 1,
   placements: {
     tapo: { column: 1, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-6': { column: 1, row: 2, columnSpan: 1, rowSpan: 1 },
-    'reserved-3': { column: 2, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-4': { column: 2, row: 2, columnSpan: 1, rowSpan: 1 },
-    calendar: { column: 3, row: 1, columnSpan: 1, rowSpan: 1 },
-    'reserved-5': { column: 3, row: 2, columnSpan: 1, rowSpan: 1 },
+    'reserved-4': { column: 1, row: 2, columnSpan: 1, rowSpan: 1 },
+    calendar: { column: 2, row: 1, columnSpan: 1, rowSpan: 1 },
+    'reserved-5': { column: 2, row: 2, columnSpan: 1, rowSpan: 1 },
+    'reserved-6': { column: 3, row: 1, columnSpan: 1, rowSpan: 1 },
+    'reserved-3': { column: 3, row: 2, columnSpan: 1, rowSpan: 1 },
   },
 });
 

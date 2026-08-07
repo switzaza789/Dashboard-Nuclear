@@ -235,15 +235,15 @@ const DashboardGrid = ({
   const modulesRegistry = [
     { id: 'calendar', title: 'Team Schedule', panel: calendarPanel },
     { id: 'tapo', title: 'Tapo Dashboard', panel: tapoPanel },
-    { id: 'reserved-3', title: 'Reserved Slot 3', panel: <ReservedDashboardPanel slotNumber={3} /> },
+    { id: 'reserved-6', title: 'Vehicle Fleet Dashboard', panel: <VehicleDashboardPanel slotNumber={3} placement={activeLayout?.placements?.['reserved-6']} /> },
     { id: 'reserved-4', title: 'Reserved Slot 4', panel: <ReservedDashboardPanel slotNumber={4} /> },
     { id: 'reserved-5', title: 'Reserved Slot 5', panel: <ReservedDashboardPanel slotNumber={5} /> },
-    { id: 'reserved-6', title: 'Vehicle Fleet Dashboard', panel: <VehicleDashboardPanel slotNumber={6} placement={activeLayout?.placements?.['reserved-6']} /> },
+    { id: 'reserved-3', title: 'Reserved Slot 6', panel: <ReservedDashboardPanel slotNumber={6} /> },
   ];
 
   if (isStacked) {
     // Deterministic vertical stacking order for mobile viewports (< 1280px)
-    const stackedOrder = ['calendar', 'tapo', 'reserved-3', 'reserved-4', 'reserved-5', 'reserved-6'];
+    const stackedOrder = ['calendar', 'tapo', 'reserved-6', 'reserved-4', 'reserved-5', 'reserved-3'];
     
     return (
       <div className="flex flex-col gap-6 w-full px-4 py-6 overflow-y-auto">
