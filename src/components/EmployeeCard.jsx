@@ -4,42 +4,6 @@ import { Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
 import { determineEmployeeStatus } from '../utils/employeeStatus';
 
-// Auto Marquee Ticker for smooth horizontal sliding of long text titles
-const MarqueeText = ({ text, className = '' }) => {
-  const containerRef = useRef(null);
-  const textRef = useRef(null);
-  const [distance, setDistance] = useState(0);
-
-  useEffect(() => {
-    const checkOverflow = () => {
-      if (containerRef.current && textRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const textWidth = textRef.current.scrollWidth;
-        if (textWidth > containerWidth + 2) {
-          setDistance(textWidth - containerWidth + 14);
-        } else {
-          setDistance(0);
-        }
-      }
-    };
-    checkOverflow();
-    window.addEventListener('resize', checkOverflow);
-    return () => window.removeEventListener('resize', checkOverflow);
-  }, [text]);
-
-  return (
-    <div ref={containerRef} className="overflow-hidden whitespace-nowrap min-w-0 flex-1 relative">
-      <div 
-        ref={textRef} 
-        className={`inline-block ${distance > 0 ? 'animate-marquee-smooth' : ''} ${className}`}
-        style={distance > 0 ? { '--marquee-distance': `-${distance}px` } : {}}
-      >
-        {text}
-      </div>
-    </div>
-  );
-};
-
 const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,7 +20,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
     };
     reader.readAsDataURL(file);
   };
-  
+
   // Lock starting day to Monday of the selected date's week
   const monday = startOfWeek(currentDate, { weekStartsOn: 1 });
   const workDays = [...Array(5)].map((_, i) => addDays(monday, i));
@@ -104,10 +68,10 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
 
   return (
     <div className="flex flex-col sm:flex-row bg-[#0f172a]/95 rounded-2xl border border-slate-800 p-3 shadow-xl hover:border-cyan-500/50 transition-all duration-200 relative overflow-hidden backdrop-blur-sm gap-3 min-w-0 h-full min-h-0 justify-between items-stretch">
-      
+
       {/* 👈 LEFT SIDEBAR: AVATAR PHOTO (80px) + FLOATING STATUS + TODAY'S EVENTS */}
       <div className="flex flex-col items-center justify-between sm:w-44 shrink-0 pb-2 sm:pb-0 sm:pr-3 border-b sm:border-b-0 sm:border-r border-slate-800/80 gap-2 text-center">
-        
+
         {/* Hidden file input for avatar upload */}
         <input
           ref={avatarFileRef}
@@ -119,7 +83,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
 
         {/* 1. Avatar Photo with FLOATING STATUS BADGE ON IMAGE */}
         <div className="flex flex-col items-center gap-1 w-full shrink-0">
-          <div 
+          <div
             className="relative w-18 h-18 sm:w-20 sm:h-20 shrink-0 cursor-pointer group/avatar my-0.5"
             title="คลิกเพื่อเปลี่ยนรูปโปรไฟล์"
             onClick={(e) => {
@@ -127,12 +91,12 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
               avatarFileRef.current?.click();
             }}
           >
-            <div 
+            <div
               className="w-full h-full rounded-full p-1 transition-all overflow-hidden border-2 shadow-lg bg-slate-900"
               style={{ borderColor: avatarBorderColor }}
             >
-              <img 
-                src={employee.avatarUrl || `https://ui-avatars.com/api/?name=${employee.name}&background=1f2937&color=fff`} 
+              <img
+                src={employee.avatarUrl || `https://ui-avatars.com/api/?name=${employee.name}&background=1f2937&color=fff`}
                 alt={employee.name}
                 className="w-full h-full rounded-full object-cover bg-slate-800 group-hover/avatar:scale-105 transition-transform duration-300"
               />
@@ -180,14 +144,13 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                 return (
                   <div
                     key={ev.id}
-                    className={`p-1 rounded-lg border text-left flex flex-col gap-0.5 ${
-                      isActive
+                    className={`p-1 rounded-lg border text-left flex flex-col gap-0.5 ${isActive
                         ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-100 shadow-sm font-bold'
                         : 'bg-slate-800/70 border-slate-700/60 text-gray-300'
-                    }`}
+                      }`}
                   >
-                    <div className="flex items-center justify-between gap-1 min-w-0">
-                      <MarqueeText text={ev.title} className="text-[10px] font-bold" />
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold truncate">{ev.title}</span>
                       {isActive && (
                         <span className="text-[7.5px] font-extrabold bg-cyan-400 text-black px-1 py-0.2 rounded leading-none shrink-0">
                           LIVE
@@ -231,7 +194,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
           {workDays.map(day => {
             const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
             dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-            
+
             let summaryText = '-';
             if (dayEvents.length === 1) {
               summaryText = dayEvents[0].title;
@@ -242,27 +205,25 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
             const isCurrentDay = isToday(day);
 
             return (
-              <button 
+              <button
                 key={day.toISOString()}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenDayModal(employee, day, dayEvents);
                 }}
-                className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${
-                  isCurrentDay 
-                    ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[1.01]' 
+                className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${isCurrentDay
+                    ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[1.01]'
                     : 'bg-slate-900/90 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-gray-200'
-                }`}
+                  }`}
                 title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <span className={`font-mono font-extrabold uppercase w-14 shrink-0 ${isCurrentDay ? 'text-sm text-cyan-300 drop-shadow' : 'text-xs text-cyan-400'}`}>
                     {format(day, 'EEE d/M')}
                   </span>
-                  <MarqueeText 
-                    text={summaryText} 
-                    className={isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'} 
-                  />
+                  <span className={`truncate ${isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'}`}>
+                    {summaryText}
+                  </span>
                 </div>
 
                 {isCurrentDay && (
@@ -277,7 +238,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
             {weekendDays.map(day => {
               const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
               dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-              
+
               let summaryText = '-';
               if (dayEvents.length === 1) {
                 summaryText = dayEvents[0].title;
@@ -288,20 +249,19 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
               const isCurrentDay = isToday(day);
 
               return (
-                <button 
+                <button
                   key={day.toISOString()}
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenDayModal(employee, day, dayEvents);
                   }}
-                  className={`flex items-center justify-between text-left px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer ${
-                    isCurrentDay 
-                      ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-200 font-bold shadow-sm' 
+                  className={`flex items-center justify-between text-left px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer ${isCurrentDay
+                      ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-200 font-bold shadow-sm'
                       : 'bg-slate-900/80 border-slate-800/80 text-gray-300 hover:text-white'
-                  }`}
+                    }`}
                 >
                   <span className="font-mono font-bold text-gray-400 mr-1 shrink-0">{format(day, 'EEE d/M')}</span>
-                  <MarqueeText text={summaryText} className="font-medium" />
+                  <span className="truncate flex-1 font-medium">{summaryText}</span>
                 </button>
               );
             })}
