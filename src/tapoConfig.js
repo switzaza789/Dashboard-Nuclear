@@ -4,19 +4,19 @@ export const CONFIG = {
   // List of rooms with their specific colors
   rooms: [
     {
-      id: "coldkit_room",
-      sheetName: "ColdKit Room",
-      color: "#ef4444", // Red
-      icon: "❄️",
-      tempRange: [20, 30], // [Min, Max]
-      humRange: [40, 70]
-    },
-    {
       id: "meddevice_room",
       sheetName: "MedDevice Room",
       color: "#c084fc", // Purple
       icon: "💊",
       tempRange: [20, 30],
+      humRange: [40, 70]
+    },
+    {
+      id: "coldkit_room",
+      sheetName: "ColdKit Room",
+      color: "#ef4444", // Red
+      icon: "❄️",
+      tempRange: [20, 30], // [Min, Max]
       humRange: [40, 70]
     },
     {
