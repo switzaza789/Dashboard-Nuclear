@@ -15,15 +15,23 @@ const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, ro
     setFailedImages(prev => ({ ...prev, [id]: true }));
   };
 
-  const loadData = async () => {
-    setLoading(true);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+
+  const loadData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     const data = await fetchVehicleData();
     setVehicles(data);
-    setLoading(false);
+    setLastSyncTime(new Date());
+    if (!isSilent) setLoading(false);
   };
 
   useEffect(() => {
     loadData();
+    // 🔄 Auto-Sync Google Sheets background refresh every 60 seconds
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const selectedVehicle = useMemo(() => {
@@ -146,6 +154,9 @@ const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, ro
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          <span className="hidden sm:flex items-center gap-1 text-[9.5px] text-emerald-400 font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 shadow-sm" title="ซิงก์ข้อมูลสดจาก Google Sheets ทุก 1 นาที">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> LIVE Sheet
+          </span>
           {selectedVehicle && (
             <button
               onClick={() => setSelectedVehicleId(null)}

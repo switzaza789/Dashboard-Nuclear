@@ -48,6 +48,25 @@ function App() {
     localStorage.setItem('app_auto_play', isAutoPlay);
   }, [isAutoPlay]);
 
+  // ⌨️ Global Keyboard Shortcuts (T: TV Mode, Spacebar: Auto-Play / Pause)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        setIsTvMode(prev => !prev);
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        setIsAutoPlay(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Hands-free Auto-Scroll effect for TV Meeting display
   useEffect(() => {
     if (!isAutoPlay) return;

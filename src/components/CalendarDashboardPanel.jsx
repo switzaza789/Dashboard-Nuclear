@@ -14,17 +14,42 @@ const CalendarDashboardPanel = ({
   const dateInputRef = useRef(null);
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
   const [scheduleViewMode, setScheduleViewMode] = useState('weekly'); // 'weekly' | 'daily'
+  const [countdown, setCountdown] = useState(60);
 
-  // Auto-switch between weekly and daily views when in TV or Auto-Scroll Mode
+  // ⏱️ Auto-switch countdown timer (60s) between weekly and daily views
   useEffect(() => {
-    if (!isAutoPlay && !isTvMode) return;
+    if (!isAutoPlay && !isTvMode) {
+      setCountdown(60);
+      return;
+    }
 
     const interval = setInterval(() => {
-      setScheduleViewMode(prev => (prev === 'weekly' ? 'daily' : 'weekly'));
-    }, 60000); // สลับมุมมองทุกๆ 1 นาที (60 วินาที)
+      setCountdown(prev => {
+        if (prev <= 1) {
+          setScheduleViewMode(current => (current === 'weekly' ? 'daily' : 'weekly'));
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isAutoPlay, isTvMode]);
+
+  // ⌨️ Keyboard shortcut (D key) to manually toggle view mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        setScheduleViewMode(prev => (prev === 'weekly' ? 'daily' : 'weekly'));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const colSpan = placement?.columnSpan || 1;
   const rowSpan = placement?.rowSpan || 1;
@@ -203,6 +228,17 @@ const CalendarDashboardPanel = ({
           </div>
 
         </div>
+
+        {/* ⏱️ COUNTDOWN PROGRESS BAR FOR AUTO-ROTATION */}
+        {(isAutoPlay || isTvMode) && (
+          <div className="w-full bg-slate-800/80 h-1 rounded-full overflow-hidden mt-1.5 border border-cyan-900/40 relative">
+            <div 
+              className="bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400 h-full rounded-full transition-all duration-1000 ease-linear shadow-[0_0_10px_#06b6d4]"
+              style={{ width: `${(countdown / 60) * 100}%` }}
+              title={`จะสลับเป็นมุมมอง ${scheduleViewMode === 'weekly' ? 'รายวัน' : 'รายสัปดาห์'} ในอีก ${countdown} วินาที`}
+            />
+          </div>
+        )}
       </div>
 
       {/* Settings Full-Card Overlay */}
