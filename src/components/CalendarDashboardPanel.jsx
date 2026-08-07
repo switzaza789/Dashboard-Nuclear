@@ -7,10 +7,24 @@ const CalendarDashboardPanel = ({
   data: { processedEmployees, visibleEmployees = [], hiddenEmployeeEmails = [], teamOverview, loading, currentDate, currentTimeReal },
   actions: { setCurrentDate, goToday, prevDay, nextDay, setFullCalendarOpen, setCompareModalOpen, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, toggleEmployeeVisibility, showAllEmployees, hideAllEmployees },
   isSplitView = true,
+  isTvMode = false,
+  isAutoPlay = false,
   placement = { columnSpan: 1, rowSpan: 1 }
 }) => {
   const dateInputRef = useRef(null);
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
+  const [scheduleViewMode, setScheduleViewMode] = useState('weekly'); // 'weekly' | 'daily'
+
+  // Auto-switch between weekly and daily views when in TV or Auto-Scroll Mode
+  useEffect(() => {
+    if (!isAutoPlay && !isTvMode) return;
+
+    const interval = setInterval(() => {
+      setScheduleViewMode(prev => (prev === 'weekly' ? 'daily' : 'weekly'));
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isAutoPlay, isTvMode]);
 
   const colSpan = placement?.columnSpan || 1;
   const rowSpan = placement?.rowSpan || 1;
@@ -106,6 +120,24 @@ const CalendarDashboardPanel = ({
 
           {/* 🎯 RIGHT: ALL CONTROLS IN 1 SINGLE ROW */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* 0. ปุ่มสลับโหมดการแสดงผล (รายสัปดาห์ / รายวัน) */}
+            <div className="flex items-center bg-gray-900 border border-gray-700 rounded-lg p-0.5 shadow-sm text-[9.5px] font-bold">
+              <button
+                onClick={() => setScheduleViewMode('weekly')}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer whitespace-nowrap ${scheduleViewMode === 'weekly' ? 'bg-cyan-600 text-white font-extrabold shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                title="แสดงตารางปฏิทินแบบรายสัปดาห์ (7 วัน)"
+              >
+                📅 รายสัปดาห์
+              </button>
+              <button
+                onClick={() => setScheduleViewMode('daily')}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer whitespace-nowrap ${scheduleViewMode === 'daily' ? 'bg-cyan-600 text-white font-extrabold shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}
+                title="แสดงตารางปฏิทินแบบรายวันบอกช่วงเวลา"
+              >
+                ⏰ รายวัน
+              </button>
+            </div>
+
             {/* 1. ปุ่มสลับวัน (‹ วันนี้ ›) */}
             <div className="flex items-center bg-[#1f2937]/90 border border-gray-700 rounded-lg p-0.5 shadow-sm">
               <button 
@@ -305,6 +337,7 @@ const CalendarDashboardPanel = ({
                 employee={employee}
                 currentDate={currentDate}
                 currentTimeReal={currentTimeReal}
+                scheduleViewMode={scheduleViewMode}
                 onOpenDayModal={onOpenDayModal}
                 onOpenEmployeeModal={onOpenEmployeeModal}
                 onOpenEditProfileModal={onOpenEditProfileModal}

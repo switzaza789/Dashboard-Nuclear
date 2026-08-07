@@ -1,10 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { format, isSameDay, addDays, isToday, startOfWeek } from 'date-fns';
 import { Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
 import { determineEmployeeStatus } from '../utils/employeeStatus';
 
-const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal }) => {
+// Helper component for text scrolling animation
+const MarqueeText = ({ text, className }) => (
+  <div className={`overflow-hidden whitespace-nowrap ${className}`}>
+    <div className="inline-block animate-marquee hover:[animation-play-state:paused]">
+      {text}
+    </div>
+  </div>
+);
+
+const EmployeeCard = ({ employee, currentDate, scheduleViewMode = 'weekly', onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const avatarFileRef = useRef(null);
@@ -43,6 +52,12 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
     }
     return () => { isMounted = false; };
   }, [employee.email, currentDate, currentDateStr]);
+
+  const selectedDayEvents = useMemo(() => {
+    const dayEvs = events.filter(e => isSameDay(new Date(e.start), currentDate));
+    dayEvs.sort((a, b) => new Date(a.start) - new Date(b.start));
+    return dayEvs;
+  }, [events, currentDate]);
 
   const status = determineEmployeeStatus(employee, events, new Date());
   const statusText = status.text;
@@ -149,8 +164,8 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                         : 'bg-slate-800/70 border-slate-700/60 text-gray-300'
                       }`}
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-bold truncate">{ev.title}</span>
+                    <div className="flex items-center justify-between gap-1 min-w-0">
+                      <MarqueeText text={ev.title} className="text-[10px] font-bold" />
                       {isActive && (
                         <span className="text-[7.5px] font-extrabold bg-cyan-400 text-black px-1 py-0.2 rounded leading-none shrink-0">
                           LIVE
@@ -181,92 +196,183 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
         </button>
       </div>
 
-      {/* 👉 RIGHT AREA: 📅 DEDICATED 7-DAY FULLY READABLE CALENDAR SCHEDULE TABLE (ALL 7 DAYS VISIBLE AT A GLANCE) */}
+      {/* 👉 RIGHT AREA: 📅 DEDICATED SCHEDULE PANEL (SUPPORTING BOTH WEEKLY & DAILY TIMELINE VIEWS) */}
       <div className="flex-1 flex flex-col gap-1.5 min-w-0 justify-between h-full min-h-0">
-        <div className="flex items-center justify-between px-0.5 pb-0.5 border-b border-slate-800 shrink-0">
-          <span className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
-            <CalendarIcon size={13} className="text-cyan-400" /> ตารางปฏิทินสัปดาห์นี้
-          </span>
-        </div>
+        
+        {scheduleViewMode === 'daily' ? (
+          /* ======================================================== */
+          /* ⏰ DAILY TIMELINE SCHEDULE VIEW (ช่วงเวลาตามที่ระบุในงาน) */
+          /* ======================================================== */
+          <>
+            <div className="flex items-center justify-between px-0.5 pb-0.5 border-b border-slate-800 shrink-0">
+              <span className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock size={13} className="text-cyan-400" /> ตารางงานรายวัน ({format(currentDate, 'dd/MM/yyyy')})
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-700 font-mono shadow-sm">
+                {selectedDayEvents.length} งาน
+              </span>
+            </div>
 
-        {/* 5 Work Days Rows (MON to FRI) */}
-        <div className="flex flex-col gap-1 flex-1 justify-between min-h-0">
-          {workDays.map(day => {
-            const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
-            dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
-
-            let summaryText = '-';
-            if (dayEvents.length === 1) {
-              summaryText = dayEvents[0].title;
-            } else if (dayEvents.length > 1) {
-              summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1} งานอื่น)`;
-            }
-
-            const isCurrentDay = isToday(day);
-
-            return (
-              <button
-                key={day.toISOString()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenDayModal(employee, day, dayEvents);
-                }}
-                className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${isCurrentDay
-                    ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[1.01]'
-                    : 'bg-slate-900/90 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-gray-200'
-                  }`}
-                title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <span className={`font-mono font-extrabold uppercase w-14 shrink-0 ${isCurrentDay ? 'text-sm text-cyan-300 drop-shadow' : 'text-xs text-cyan-400'}`}>
-                    {format(day, 'EEE d/M')}
-                  </span>
-                  <span className={`truncate ${isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'}`}>
-                    {summaryText}
-                  </span>
+            {selectedDayEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-6 text-center bg-slate-900/40 rounded-xl border border-slate-800 p-3 my-auto">
+                <div className="w-8 h-8 rounded-full bg-emerald-950/80 border border-emerald-500/50 flex items-center justify-center text-emerald-400 mb-1.5 shadow-md font-bold text-sm">
+                  ✓
                 </div>
+                <span className="text-xs font-bold text-emerald-300">ไม่มีนัดหมายในวันนี้</span>
+                <span className="text-[10px] text-gray-400 mt-0.5">สถานะพร้อมรับมอบหมายงาน</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-0.5 flex-1 min-h-0">
+                {selectedDayEvents.map(ev => {
+                  const now = new Date();
+                  const start = new Date(ev.start);
+                  const end = new Date(ev.end);
+                  const isActive = now >= start && now <= end;
+                  const isPast = now > end;
 
-                {isCurrentDay && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shrink-0 ml-1 shadow-[0_0_10px_#06b6d4]" />
-                )}
-              </button>
-            );
-          })}
+                  return (
+                    <div 
+                      key={ev.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenDayModal(employee, currentDate, selectedDayEvents);
+                      }}
+                      className={`p-2 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer shadow-md ${
+                        isActive
+                          ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 shadow-[0_0_12px_rgba(6,182,212,0.4)] scale-[1.01]'
+                          : isPast
+                            ? 'bg-slate-900/40 border-slate-800/60 text-gray-400 opacity-70'
+                            : 'bg-slate-900/90 border-slate-700/80 hover:bg-slate-800 text-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className={`text-[10.5px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                          isActive 
+                            ? 'bg-cyan-900/90 text-cyan-200 border border-cyan-500/60' 
+                            : 'bg-slate-800 text-cyan-400 border border-slate-700'
+                        }`}>
+                          🕒 {format(start, 'HH:mm')} – {format(end, 'HH:mm')} น.
+                        </span>
 
-          {/* Saturday & Sunday Side-by-Side Row (ALWAYS VISIBLE AT BOTTOM) */}
-          <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5">
-            {weekendDays.map(day => {
-              const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
-              dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+                        {isActive ? (
+                          <span className="text-[8.5px] font-extrabold bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow-[0_0_8px_#06b6d4]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-950 animate-ping" /> LIVE
+                          </span>
+                        ) : isPast ? (
+                          <span className="text-[8.5px] font-semibold bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded-full border border-slate-700">
+                            เสร็จแล้ว
+                          </span>
+                        ) : (
+                          <span className="text-[8.5px] font-semibold bg-blue-950/80 text-blue-300 px-1.5 py-0.5 rounded-full border border-blue-700/60">
+                            กำลังจะมาถึง
+                          </span>
+                        )}
+                      </div>
 
-              let summaryText = '-';
-              if (dayEvents.length === 1) {
-                summaryText = dayEvents[0].title;
-              } else if (dayEvents.length > 1) {
-                summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1})`;
-              }
+                      <MarqueeText 
+                        text={ev.title} 
+                        className={isActive ? 'text-xs sm:text-[13px] font-extrabold text-white tracking-wide' : 'text-xs font-semibold text-gray-100'} 
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          /* ======================================================== */
+          /* 📅 WEEKLY SCHEDULE VIEW (7-DAY SUMMARY) */
+          /* ======================================================== */
+          <>
+            <div className="flex items-center justify-between px-0.5 pb-0.5 border-b border-slate-800 shrink-0">
+              <span className="text-xs font-bold text-gray-200 uppercase tracking-wider flex items-center gap-1.5">
+                <CalendarIcon size={13} className="text-cyan-400" /> ตารางปฏิทินสัปดาห์นี้
+              </span>
+            </div>
 
-              const isCurrentDay = isToday(day);
+            {/* 5 Work Days Rows (MON to FRI) */}
+            <div className="flex flex-col gap-1 flex-1 justify-between min-h-0">
+              {workDays.map(day => {
+                const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
+                dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+                
+                let summaryText = '-';
+                if (dayEvents.length === 1) {
+                  summaryText = dayEvents[0].title;
+                } else if (dayEvents.length > 1) {
+                  summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1} งานอื่น)`;
+                }
 
-              return (
-                <button
-                  key={day.toISOString()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenDayModal(employee, day, dayEvents);
-                  }}
-                  className={`flex items-center justify-between text-left px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer ${isCurrentDay
-                      ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-200 font-bold shadow-sm'
-                      : 'bg-slate-900/80 border-slate-800/80 text-gray-300 hover:text-white'
+                const isCurrentDay = isToday(day);
+
+                return (
+                  <button 
+                    key={day.toISOString()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenDayModal(employee, day, dayEvents);
+                    }}
+                    className={`flex items-center justify-between text-left px-3 py-1.5 rounded-xl border transition-all cursor-pointer group flex-1 ${
+                      isCurrentDay 
+                        ? 'bg-gradient-to-r from-cyan-950/95 via-slate-900 to-cyan-950/95 border-cyan-400 text-cyan-100 font-extrabold shadow-[0_0_15px_rgba(6,182,212,0.4)] scale-[1.01]' 
+                        : 'bg-slate-900/90 border-slate-800 hover:bg-slate-800 hover:border-slate-700 text-gray-200'
                     }`}
-                >
-                  <span className="font-mono font-bold text-gray-400 mr-1 shrink-0">{format(day, 'EEE d/M')}</span>
-                  <span className="truncate flex-1 font-medium">{summaryText}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+                    title={`คลิกเพื่อดูรายละเอียด: ${summaryText}`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className={`font-mono font-extrabold uppercase w-14 shrink-0 ${isCurrentDay ? 'text-sm text-cyan-300 drop-shadow' : 'text-xs text-cyan-400'}`}>
+                        {format(day, 'EEE d/M')}
+                      </span>
+                      <MarqueeText 
+                        text={summaryText} 
+                        className={isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'} 
+                      />
+                    </div>
+
+                    {isCurrentDay && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shrink-0 ml-1 shadow-[0_0_10px_#06b6d4]" />
+                    )}
+                  </button>
+                );
+              })}
+
+              {/* Saturday & Sunday Side-by-Side Row (ALWAYS VISIBLE AT BOTTOM) */}
+              <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5">
+                {weekendDays.map(day => {
+                  const dayEvents = events.filter(e => isSameDay(new Date(e.start), day));
+                  dayEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+                  
+                  let summaryText = '-';
+                  if (dayEvents.length === 1) {
+                    summaryText = dayEvents[0].title;
+                  } else if (dayEvents.length > 1) {
+                    summaryText = `${dayEvents[0].title} (+${dayEvents.length - 1})`;
+                  }
+
+                  const isCurrentDay = isToday(day);
+
+                  return (
+                    <button 
+                      key={day.toISOString()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenDayModal(employee, day, dayEvents);
+                      }}
+                      className={`flex items-center justify-between text-left px-2.5 py-1 rounded-lg border text-[11px] transition-all cursor-pointer ${
+                        isCurrentDay 
+                          ? 'bg-cyan-950/90 border-cyan-500/80 text-cyan-200 font-bold shadow-sm' 
+                          : 'bg-slate-900/80 border-slate-800/80 text-gray-300 hover:text-white'
+                      }`}
+                    >
+                      <span className="font-mono font-bold text-gray-400 mr-1 shrink-0">{format(day, 'EEE d/M')}</span>
+                      <MarqueeText text={summaryText} className="font-medium" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
       </div>
 

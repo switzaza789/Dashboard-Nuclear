@@ -402,6 +402,8 @@ function App() {
                   hideAllEmployees
                 }}
                 isSplitView={true}
+                isTvMode={isTvMode}
+                isAutoPlay={isAutoPlay}
               />
             }
             tapoPanel={
