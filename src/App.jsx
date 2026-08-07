@@ -35,6 +35,8 @@ function App() {
     return localStorage.getItem('app_auto_play') === 'true';
   });
 
+  const [showShortcutModal, setShowShortcutModal] = useState(false);
+
   // Sync state to local storage
   useEffect(() => {
     localStorage.setItem('app_view_mode', viewMode);
@@ -282,10 +284,10 @@ function App() {
                   ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-[0_0_15px_rgba(245,158,11,0.5)]' 
                   : 'bg-gray-800 hover:bg-gray-700 text-amber-400 border-gray-700'
               }`}
-              title="สลับโหมด TV Meeting (ขยายตัวหนังสือ/ตัวเลขขนาดใหญ่พิเศษ เพื่ออ่านชัดเจนระยะไกล)"
+              title="กดปุ่ม [T] เพื่อสลับโหมด TV Meeting (ขยายตัวหนังสือ/ตัวเลขขนาดใหญ่พิเศษ เพื่ออ่านชัดเจนระยะไกล)"
             >
               <Tv size={14} />
-              <span>{isTvMode ? '📺 TV Mode: เปิด' : '📺 TV Mode'}</span>
+              <span>{isTvMode ? '📺 TV Mode [T]: เปิด' : '📺 TV Mode [T]'}</span>
             </button>
 
             {/* Auto-Scroll Hands-Free Toggle */}
@@ -296,10 +298,19 @@ function App() {
                   ? 'bg-emerald-600 text-white border-emerald-400 font-extrabold shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
                   : 'bg-gray-800 hover:bg-gray-700 text-emerald-400 border-gray-700'
               }`}
-              title="สลับระบบ Auto-Scroll / เลื่อนหน้าจออัตโนมัติ (ไม่ต้องใช้เมาส์)"
+              title="กดปุ่ม [Spacebar] เพื่อสลับระบบ Auto-Scroll / เลื่อนหน้าจออัตโนมัติ (ไม่ต้องใช้เมาส์)"
             >
               {isAutoPlay ? <Pause size={13} /> : <Play size={13} />}
-              <span>{isAutoPlay ? 'Auto-Scroll: เปิด' : 'Auto-Scroll'}</span>
+              <span>{isAutoPlay ? 'Auto-Scroll [Space]: เปิด' : 'Auto-Scroll [Space]'}</span>
+            </button>
+
+            {/* ⌨️ Keyboard / Remote Shortcuts Helper Button */}
+            <button
+              onClick={() => setShowShortcutModal(true)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-cyan-400 text-xs font-semibold border border-gray-700 transition-all cursor-pointer shadow-sm"
+              title="ดูปุ่มลัดบนคีย์บอร์ด / รีโมท TV ทั้งหมด"
+            >
+              <span>⌨️ คีย์ลัด</span>
             </button>
 
             {!layout.isEditingLayout && (
@@ -499,6 +510,57 @@ function App() {
         isSaving={layout.isSaving}
       />
       
+      {/* ⌨️ Keyboard & Remote Shortcuts Helper Modal */}
+      {showShortcutModal && (
+        <div 
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowShortcutModal(false)}
+        >
+          <div 
+            className="bg-[#0f172a] border border-cyan-500/50 rounded-2xl max-w-md w-full p-5 shadow-[0_0_30px_rgba(6,182,212,0.3)] relative text-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                <span>⌨️</span> ปุ่มลัดคีย์บอร์ด / รีโมท TV
+              </h3>
+              <button 
+                onClick={() => setShowShortcutModal(false)}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="font-medium text-gray-300">สลับโหมด TV Meeting (ตัวหนังสือใหญ่พิเศษ)</span>
+                <kbd className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/50 font-mono font-extrabold text-xs shadow-sm">T</kbd>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="font-medium text-gray-300">พัก / เล่นต่อ ระบบเลื่อนหน้าจอ Auto-Scroll</span>
+                <kbd className="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-mono font-extrabold text-xs shadow-sm">Spacebar</kbd>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="font-medium text-gray-300">สลับตารางปฏิทิน (รายสัปดาห์ ↔ รายวัน)</span>
+                <kbd className="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-mono font-extrabold text-xs shadow-sm">D</kbd>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-800 text-center">
+              <button
+                onClick={() => setShowShortcutModal(false)}
+                className="w-full py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs transition-colors shadow-md cursor-pointer"
+              >
+                เข้าใจแล้ว
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast show={toast.show} message={toast.message} type={toast.type} onClose={() => setToast(prev => ({ ...prev, show: false }))} />
     </div>
   );
