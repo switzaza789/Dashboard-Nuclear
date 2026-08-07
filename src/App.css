@@ -271,4 +271,30 @@ body.is-dragging-dashboard {
   font-weight: bold !important;
 }
 
+/* ======================================================== */
+/* 📜 AUTO MARQUEE TICKER ANIMATION FOR LONG TEXT */
+/* ======================================================== */
+@keyframes marquee-smooth {
+  0% {
+    transform: translateX(0%);
+  }
+  20% {
+    transform: translateX(0%);
+  }
+  80% {
+    transform: translateX(var(--marquee-distance, -40%));
+  }
+  100% {
+    transform: translateX(var(--marquee-distance, -40%));
+  }
+}
+
+.animate-marquee-smooth {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+  animation: marquee-smooth 7s ease-in-out infinite alternate;
+}
+
+
 

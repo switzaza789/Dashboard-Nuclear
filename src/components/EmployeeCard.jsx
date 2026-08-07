@@ -4,6 +4,42 @@ import { Clock, Calendar as CalendarIcon } from 'lucide-react';
 import { fetchEvents } from '../api/calendar';
 import { determineEmployeeStatus } from '../utils/employeeStatus';
 
+// Auto Marquee Ticker for smooth horizontal sliding of long text titles
+const MarqueeText = ({ text, className = '' }) => {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+  const [distance, setDistance] = useState(0);
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (containerRef.current && textRef.current) {
+        const containerWidth = containerRef.current.clientWidth;
+        const textWidth = textRef.current.scrollWidth;
+        if (textWidth > containerWidth + 2) {
+          setDistance(textWidth - containerWidth + 14);
+        } else {
+          setDistance(0);
+        }
+      }
+    };
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [text]);
+
+  return (
+    <div ref={containerRef} className="overflow-hidden whitespace-nowrap min-w-0 flex-1 relative">
+      <div 
+        ref={textRef} 
+        className={`inline-block ${distance > 0 ? 'animate-marquee-smooth' : ''} ${className}`}
+        style={distance > 0 ? { '--marquee-distance': `-${distance}px` } : {}}
+      >
+        {text}
+      </div>
+    </div>
+  );
+};
+
 const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -150,8 +186,8 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                         : 'bg-slate-800/70 border-slate-700/60 text-gray-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-bold truncate">{ev.title}</span>
+                    <div className="flex items-center justify-between gap-1 min-w-0">
+                      <MarqueeText text={ev.title} className="text-[10px] font-bold" />
                       {isActive && (
                         <span className="text-[7.5px] font-extrabold bg-cyan-400 text-black px-1 py-0.2 rounded leading-none shrink-0">
                           LIVE
@@ -223,9 +259,10 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                   <span className={`font-mono font-extrabold uppercase w-14 shrink-0 ${isCurrentDay ? 'text-sm text-cyan-300 drop-shadow' : 'text-xs text-cyan-400'}`}>
                     {format(day, 'EEE d/M')}
                   </span>
-                  <span className={`truncate ${isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'}`}>
-                    {summaryText}
-                  </span>
+                  <MarqueeText 
+                    text={summaryText} 
+                    className={isCurrentDay ? 'text-[13px] text-white font-extrabold tracking-wide' : 'text-xs sm:text-[12.5px] font-semibold text-gray-100 group-hover:text-cyan-300'} 
+                  />
                 </div>
 
                 {isCurrentDay && (
@@ -264,7 +301,7 @@ const EmployeeCard = ({ employee, currentDate, onOpenDayModal, onOpenEmployeeMod
                   }`}
                 >
                   <span className="font-mono font-bold text-gray-400 mr-1 shrink-0">{format(day, 'EEE d/M')}</span>
-                  <span className="truncate flex-1 font-medium">{summaryText}</span>
+                  <MarqueeText text={summaryText} className="font-medium" />
                 </button>
               );
             })}
