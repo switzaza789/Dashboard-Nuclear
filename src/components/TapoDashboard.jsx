@@ -12,26 +12,28 @@ const CustomLegend = ({ payload, onHover, type }) => {
   if (!payload || payload.length === 0) return null;
   
   return (
-    <div className="custom-legend flex flex-wrap gap-1.5 justify-center mb-1.5">
+    <div className="custom-legend w-full mb-2 flex flex-col items-center gap-1.5">
       {payload.map((entry, index) => {
         const valText = type === 'temp' ? entry.latestTemp : entry.latestHum;
+        const displayName = entry.name.toLowerCase() === 'haier' ? 'Haier' : entry.name;
         return (
           <div 
             key={`item-${index}`} 
-            className="custom-legend-item px-2 py-1 rounded-lg border flex items-center gap-1.5 text-[11px] font-bold cursor-pointer transition-all shrink-0"
+            className="custom-legend-item px-3 py-1 rounded-lg border flex items-center justify-between gap-3 text-[11px] font-bold cursor-pointer transition-all w-full max-w-[260px] shrink-0"
             onMouseEnter={() => onHover && onHover(entry.id)}
             onMouseLeave={() => onHover && onHover(null)}
             style={{ 
               boxShadow: entry.isHovered ? `0 0 12px ${entry.color}` : 'none',
               borderColor: entry.isHovered ? entry.color : 'rgba(255, 255, 255, 0.15)',
-              backgroundColor: entry.isHovered ? 'rgba(255, 255, 255, 0.1)' : 'rgba(15, 23, 42, 0.7)',
+              backgroundColor: entry.isHovered ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.75)',
               transform: entry.isHovered ? 'scale(1.02)' : 'none'
             }}
           >
-            <span style={{ color: entry.color }} className="font-bold flex items-center gap-1">
-              {entry.icon} {entry.name}:
+            <span style={{ color: entry.color }} className="font-bold flex items-center gap-1.5 truncate">
+              <span className="shrink-0">{entry.icon}</span> 
+              <span className="truncate">{displayName}:</span>
             </span>
-            <span className="font-mono text-white text-[12px] font-extrabold">{valText}</span>
+            <span className="font-mono text-white text-[12px] font-extrabold shrink-0 ml-auto whitespace-nowrap">{valText}</span>
           </div>
         );
       })}
@@ -39,7 +41,65 @@ const CustomLegend = ({ payload, onHover, type }) => {
   );
 };
 
+// Helper to parse Config_Devices CSV from Google Sheet
+function parseConfigDevicesCSV(csvText) {
+  try {
+    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    if (!parsed.data || parsed.data.length === 0) return null;
+
+    const defaultColors = ['#c084fc', '#ef4444', '#38bdf8', '#4ade80', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316'];
+    const defaultIcons = ['💊', '❄️', '🧊', '🧊', '🧊', '🥶', '🌡️', '🏠', '📦', '🔬'];
+
+    const devices = [];
+    parsed.data.forEach((row, idx) => {
+      const keys = Object.keys(row);
+      const findKey = (...aliases) => {
+        const found = keys.find(k => aliases.some(a => k.trim().toLowerCase() === a.toLowerCase() || k.trim().toLowerCase().includes(a.toLowerCase())));
+        return found ? row[found] : undefined;
+      };
+
+      const rawSheetName = findKey('sheetname', 'sheet_name', 'sheet', 'ชื่อแท็บ', 'แท็บ', 'tab');
+      const rawName = findKey('name', 'devicename', 'device_name', 'ชื่ออุปกรณ์', 'ชื่อ');
+      const sheetName = (rawSheetName || rawName || '').trim();
+      if (!sheetName) return;
+
+      const rawId = findKey('id', 'device_id', 'deviceid', 'รหัส');
+      const id = (rawId || sheetName.toLowerCase().replace(/[^a-z0-9_]/g, '_')).trim();
+
+      const name = (rawName || sheetName).trim();
+      const color = (findKey('color', 'สี', 'hex') || defaultColors[idx % defaultColors.length]).trim();
+      const icon = (findKey('icon', 'ไอคอน', 'สัญลักษณ์') || defaultIcons[idx % defaultIcons.length]).trim();
+
+      const minTempRaw = findKey('mintemp', 'min_temp', 'tempmin', 'temp_min', 'อุณหภูมิต่ำสุด', 'min temp');
+      const maxTempRaw = findKey('maxtemp', 'max_temp', 'tempmax', 'temp_max', 'อุณหภูมิสูงสุด', 'max temp');
+      const minHumRaw = findKey('minhum', 'min_hum', 'hummin', 'hum_min', 'ความชื้นต่ำสุด', 'min hum');
+      const maxHumRaw = findKey('maxhum', 'max_hum', 'hummax', 'hum_max', 'ความชื้นสูงสุด', 'max hum');
+
+      const minTemp = minTempRaw !== undefined && minTempRaw !== '' && !isNaN(Number(minTempRaw)) ? Number(minTempRaw) : 2;
+      const maxTemp = maxTempRaw !== undefined && maxTempRaw !== '' && !isNaN(Number(maxTempRaw)) ? Number(maxTempRaw) : 8;
+      const minHum = minHumRaw !== undefined && minHumRaw !== '' && !isNaN(Number(minHumRaw)) ? Number(minHumRaw) : 40;
+      const maxHum = maxHumRaw !== undefined && maxHumRaw !== '' && !isNaN(Number(maxHumRaw)) ? Number(maxHumRaw) : 80;
+
+      devices.push({
+        id,
+        sheetName,
+        name,
+        color,
+        icon,
+        tempRange: [minTemp, maxTemp],
+        humRange: [minHum, maxHum]
+      });
+    });
+
+    return devices.length > 0 ? devices : null;
+  } catch (e) {
+    console.warn('Could not parse Config_Devices CSV:', e);
+    return null;
+  }
+}
+
 export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode = false, onToggleFullscreen }) {
+  const [rooms, setRooms] = useState(CONFIG.rooms);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -75,10 +135,50 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
       setError(null);
       
       try {
-        const fetchPromises = CONFIG.rooms.map(room => {
+        // 1. Try to fetch dynamic room list from Config_Devices tab
+        let currentRooms = CONFIG.rooms;
+        const configTabName = CONFIG.configSheetName || 'Config_Devices';
+        const configUrl = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(configTabName)}`;
+
+        try {
+          const configRes = await new Promise((resolve) => {
+            Papa.parse(configUrl, {
+              download: true,
+              header: true,
+              skipEmptyLines: true,
+              complete: (results) => resolve(results),
+              error: () => resolve(null)
+            });
+          });
+
+          if (configRes && configRes.data && configRes.data.length > 0) {
+            // Check if there are meaningful headers
+            const parsedDevices = parseConfigDevicesCSV(Papa.unparse(configRes.data));
+            if (parsedDevices && parsedDevices.length > 0) {
+              currentRooms = parsedDevices;
+            }
+          }
+        } catch {
+          // Fallback gracefully to default CONFIG.rooms
+          currentRooms = CONFIG.rooms;
+        }
+
+        setRooms(currentRooms);
+        setVisibleRooms(prev => {
+          const updated = { ...prev };
+          currentRooms.forEach(r => {
+            if (updated[r.id] === undefined) {
+              updated[r.id] = true;
+            }
+          });
+          return updated;
+        });
+
+        // 2. Fetch all rooms data in parallel
+        const fetchPromises = currentRooms.map(room => {
           const url = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(room.sheetName)}`;
           
-          return new Promise((resolve, reject) => {
+          return new Promise((resolve) => {
             Papa.parse(url, {
               download: true,
               header: true,
@@ -107,7 +207,8 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                 resolve(roomData);
               },
               error: (err) => {
-                reject(new Error(`Failed to fetch ${room.sheetName}: ${err.message}`));
+                console.warn(`Could not load sheet for ${room.sheetName}:`, err);
+                resolve([]); // Don't crash entire dashboard if one tab fails
               }
             });
           });
@@ -176,7 +277,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
 
   const latestValues = useMemo(() => {
     const latest = {};
-    CONFIG.rooms.forEach(room => {
+    rooms.forEach(room => {
       latest[room.id] = { 
         temp: '--', hum: '--', tempTrend: 0, humTrend: 0, isAlert: false, tempAlert: false, humAlert: false,
         tempMax: '--', tempMin: '--', tempAvg: '--',
@@ -256,21 +357,21 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
 
   // Payload for Custom Legend
   const legendPayload = useMemo(() => {
-    return CONFIG.rooms
+    return rooms
       .filter(room => visibleRooms[room.id])
       .map(room => {
         const stats = latestValues[room.id];
         return {
           id: room.id,
           icon: room.icon,
-          name: room.sheetName,
+          name: room.name || room.sheetName,
           latestTemp: stats ? `${stats.temp}°C` : 'N/A',
           latestHum: stats ? `${stats.hum}%` : 'N/A',
           color: room.color,
           isHovered: hoveredRoom === room.id
         };
       });
-  }, [visibleRooms, hoveredRoom, latestValues]);
+  }, [rooms, visibleRooms, hoveredRoom, latestValues]);
 
   const { tempTicks, humTicks } = useMemo(() => {
     let globalTempMin = Infinity;
@@ -280,16 +381,16 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
 
     Object.entries(latestValues).forEach(([roomId, stats]) => {
       if (visibleRooms[roomId]) {
-        if (stats.tempMin !== 'N/A') {
+        if (stats.tempMin !== 'N/A' && stats.tempMin !== '--') {
           globalTempMin = Math.min(globalTempMin, parseFloat(stats.tempMin));
         }
-        if (stats.tempMax !== 'N/A') {
+        if (stats.tempMax !== 'N/A' && stats.tempMax !== '--') {
           globalTempMax = Math.max(globalTempMax, parseFloat(stats.tempMax));
         }
-        if (stats.humMin !== 'N/A') {
+        if (stats.humMin !== 'N/A' && stats.humMin !== '--') {
           globalHumMin = Math.min(globalHumMin, parseFloat(stats.humMin));
         }
-        if (stats.humMax !== 'N/A') {
+        if (stats.humMax !== 'N/A' && stats.humMax !== '--') {
           globalHumMax = Math.max(globalHumMax, parseFloat(stats.humMax));
         }
       }
@@ -297,9 +398,11 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
 
     const tTicks = [];
     if (globalTempMin !== Infinity && globalTempMax !== -Infinity) {
-      const start = Math.floor(globalTempMin / 2) * 2;
-      const end = Math.ceil(globalTempMax / 2) * 2;
-      for (let i = start; i <= end; i += 2) {
+      const span = globalTempMax - globalTempMin;
+      const step = span > 40 ? 5 : (span > 20 ? 4 : 2);
+      const start = Math.floor(globalTempMin / step) * step;
+      const end = Math.ceil(globalTempMax / step) * step;
+      for (let i = start; i <= end; i += step) {
         tTicks.push(i);
       }
     }
@@ -333,9 +436,9 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
   let leftAxisWeight = "normal";
 
   if (hoveredRoom) {
-    const hoveredRoomConfig = CONFIG.rooms.find(r => r.id === hoveredRoom);
+    const hoveredRoomConfig = rooms.find(r => r.id === hoveredRoom);
     if (hoveredRoomConfig) {
-      if (!hoveredRoom.includes('fridge')) {
+      if (!hoveredRoom.includes('fridge') && !hoveredRoom.includes('freezer')) {
         leftAxisColor = hoveredRoomConfig.color;
         leftAxisFilter = `drop-shadow(0px 0px 8px ${hoveredRoomConfig.color})`;
         leftAxisWeight = "bold";
@@ -502,7 +605,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                   เลือกเปิด/ปิดกราฟแต่ละห้อง
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {CONFIG.rooms.map(room => (
+                  {rooms.map(room => (
                     <div 
                       key={room.id} 
                       style={{
@@ -524,7 +627,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                     >
                       <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontSize: '14px' }}>{room.icon}</span>
-                        <span>{room.sheetName}</span>
+                        <span>{room.name || room.sheetName}</span>
                       </span>
                       <div style={{
                         width: '15px',
@@ -587,7 +690,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
               </button>
             </div>
             
-            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="temp" />
+            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="temp" isTvMode={isTvMode} />
             
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -625,7 +728,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                     labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}
                     labelFormatter={(label) => `เวลา: ${label}`}
                   />
-                  {CONFIG.rooms.map(room => {
+                  {rooms.map(room => {
                     if (!visibleRooms[room.id]) return null;
                     const isHovered = hoveredRoom === room.id;
                     const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
@@ -635,7 +738,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                         key={`${room.id}_temp`}
                         type="monotone" 
                         dataKey={`${room.id}_temp`} 
-                        name={`${room.icon} ${room.sheetName}`} 
+                        name={`${room.icon} ${room.name || room.sheetName}`} 
                         stroke={room.color} 
                         strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
                         strokeOpacity={isOthersHovered ? 0.15 : 1}
@@ -665,7 +768,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
               </button>
             </div>
             
-            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="hum" />
+            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="hum" isTvMode={isTvMode} />
             
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -703,7 +806,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                     labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}
                     labelFormatter={(label) => `เวลา: ${label}`}
                   />
-                  {CONFIG.rooms.map(room => {
+                  {rooms.map(room => {
                     if (!visibleRooms[room.id]) return null;
                     const isHovered = hoveredRoom === room.id;
                     const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
@@ -713,7 +816,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                         key={`${room.id}_hum`}
                         type="monotone" 
                         dataKey={`${room.id}_hum`} 
-                        name={`${room.icon} ${room.sheetName}`} 
+                        name={`${room.icon} ${room.name || room.sheetName}`} 
                         stroke={room.color} 
                         strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
                         strokeOpacity={isOthersHovered ? 0.15 : 1}
