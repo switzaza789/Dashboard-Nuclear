@@ -1,18 +1,37 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Car, RefreshCw, ArrowLeft, Calendar, Gauge, ShieldAlert, Wrench, Battery, AlertTriangle, CheckCircle2, AlertCircle, Info, Clock } from 'lucide-react';
-import { fetchVehicleData } from '../api/vehicle';
+import { fetchVehicleData, extractDriveFileId } from '../api/vehicle';
 
 const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, rowSpan: 1 } }) => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [failedImages, setFailedImages] = useState({});
+  const [imageFallbackStage, setImageFallbackStage] = useState({});
 
   const colSpan = placement?.columnSpan || 1;
   const rowSpan = placement?.rowSpan || 1;
 
-  const handleImageError = (id) => {
-    setFailedImages(prev => ({ ...prev, [id]: true }));
+  const handleImageError = (id, rawUrl) => {
+    const stage = imageFallbackStage[id] || 0;
+    const fileId = extractDriveFileId(rawUrl);
+    if (fileId && stage < 2) {
+      setImageFallbackStage(prev => ({ ...prev, [id]: stage + 1 }));
+    } else {
+      setFailedImages(prev => ({ ...prev, [id]: true }));
+    }
+  };
+
+  const getVehicleImgSrc = (v) => {
+    if (!v.imageUrl) return null;
+    const stage = imageFallbackStage[v.id] || 0;
+    const fileId = extractDriveFileId(v.imageUrl);
+    if (!fileId) return v.imageUrl;
+
+    if (stage === 0) return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+    if (stage === 1) return `https://lh3.googleusercontent.com/d/${fileId}`;
+    if (stage === 2) return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    return null;
   };
 
   const [lastSyncTime, setLastSyncTime] = useState(null);
@@ -405,12 +424,12 @@ const VehicleDashboardPanel = ({ slotNumber = 6, placement = { columnSpan: 1, ro
                 <div className={`${layoutConfig.leftColWidth} flex flex-col shrink-0`}>
                   {/* Car Image Box with Floating Glassmorphism Overlay */}
                   <div className="relative w-full h-full min-h-[90px] bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800">
-                    {v.imageUrl && !failedImages[v.id] ? (
+                    {getVehicleImgSrc(v) && !failedImages[v.id] ? (
                       <img
-                        src={v.imageUrl}
+                        src={getVehicleImgSrc(v)}
                         alt={v.model}
                         referrerPolicy="no-referrer"
-                        onError={() => handleImageError(v.id)}
+                        onError={() => handleImageError(v.id, v.imageUrl)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     ) : (

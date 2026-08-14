@@ -31,23 +31,28 @@ function parseCSV(csvText) {
   return result;
 }
 
-// Convert Google Drive view URLs or image links to direct image URLs
-export function formatImageUrl(urlStr) {
+// Extract Google Drive File ID from various URL patterns
+export function extractDriveFileId(urlStr) {
   if (!urlStr || typeof urlStr !== 'string') return null;
-
-  // Find http/https URL inside text
   const match = urlStr.match(/(https?:\/\/[^\s"',)]+)/i);
   if (!match) return null;
+  
+  const rawUrl = match[1];
+  const driveMatch = rawUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|thumbnail\?id=)|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]+)/i);
+  return driveMatch ? driveMatch[1] : null;
+}
 
-  let rawUrl = match[1];
-
-  // Convert Google Drive share link to direct view URL
-  const driveMatch = rawUrl.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/i);
-  if (driveMatch && driveMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+// Convert Google Drive view URLs or image links to direct image URLs
+export function formatImageUrl(urlStr) {
+  const fileId = extractDriveFileId(urlStr);
+  if (fileId) {
+    // Primary: Google Drive Thumbnail API (most compatible across browser CORS & permissions)
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
   }
 
-  return rawUrl;
+  if (!urlStr || typeof urlStr !== 'string') return null;
+  const match = urlStr.match(/(https?:\/\/[^\s"',)]+)/i);
+  return match ? match[1] : null;
 }
 
 // Extract model text by stripping out any embedded URLs
@@ -242,7 +247,7 @@ export async function fetchVehicleData() {
 
     const idIdx = findCol('ลำดับ');
     const plateIdx = findCol('ทะเบียน');
-    const imgIdx = findCol('รูปรถ', 'รูปภาพ', 'รูป');
+    const imgIdx = findCol('url รูป', 'urlรูป', 'url_รูป', 'รูปรถ', 'รูปภาพ', 'รูป');
     const fuelIdx = findCol('ประเภท');
     const modelIdx = findCol('รุ่น', 'ยี่ห้อ');
     const serviceIdx = findCol('เช็คระยะ');
@@ -270,8 +275,23 @@ export async function fetchVehicleData() {
       const rawFuelCol = getValue(row, fuelIdx, '');
       const rawModelCol = getValue(row, modelIdx, '');
 
-      // Check Column L (`รูปรถ`) or any embedded URL in model string
-      const imageUrl = formatImageUrl(rawImageCol) || formatImageUrl(rawModelCol);
+      // 1. Try formatted image from primary image column or model column
+      let imageUrl = formatImageUrl(rawImageCol) || formatImageUrl(rawModelCol);
+
+      // 2. Fallback: Scan all cells in the row for any Google Drive link or HTTP image URL
+      if (!imageUrl) {
+        for (let c = 0; c < row.length; c++) {
+          const cellVal = String(row[c] || '');
+          if (cellVal.includes('http')) {
+            const formatted = formatImageUrl(cellVal);
+            if (formatted) {
+              imageUrl = formatted;
+              break;
+            }
+          }
+        }
+      }
+
       const model = cleanModelName(rawModelCol);
       const fuelType = rawFuelCol;
 
