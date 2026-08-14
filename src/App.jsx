@@ -176,12 +176,29 @@ function App() {
       }
     };
     loadData();
-    return () => { isMounted = false; };
+
+    // 🔄 Auto-Sync Calendar every 30 minutes in background (silent refresh)
+    const syncIntervalMs = 30 * 60 * 1000;
+    const syncTimer = setInterval(async () => {
+      try {
+        const freshData = await fetchEmployees(true);
+        if (isMounted) {
+          setEmployees(freshData);
+        }
+      } catch (err) {
+        console.error("Calendar 30-min auto-sync error:", err);
+      }
+    }, syncIntervalMs);
+
+    return () => { 
+      isMounted = false; 
+      clearInterval(syncTimer);
+    };
   }, []);
 
   const refreshData = async () => {
     setLoading(true);
-    const data = await fetchEmployees();
+    const data = await fetchEmployees(true);
     setEmployees(data);
     setLoading(false);
   };

@@ -18,16 +18,26 @@ const EMPLOYEE_EMAILS = {
 let dataCache = null;
 let fetchPromise = null;
 
-// Fetch all sheet data once and cache it
-const getAllData = async () => {
+// Fetch all sheet data once and cache it (supports forceRefresh)
+export const invalidateCalendarCache = () => {
+  dataCache = null;
+  fetchPromise = null;
+};
+
+const getAllData = async (forceRefresh = false) => {
+  if (forceRefresh) {
+    invalidateCalendarCache();
+  }
   if (dataCache) return dataCache;
   if (fetchPromise) return fetchPromise;
   
   fetchPromise = axios.get(GAS_API_URL).then(res => {
     dataCache = Array.isArray(res.data) ? res.data : [];
+    fetchPromise = null;
     return dataCache;
   }).catch(err => {
     console.error("GAS Fetch error", err);
+    fetchPromise = null;
     return [];
   });
   
@@ -42,8 +52,8 @@ const EMPLOYEE_DEPARTMENTS = {
   "Waramet": "Sale"
 };
 
-export const fetchEmployees = async () => {
-  const data = await getAllData();
+export const fetchEmployees = async (forceRefresh = false) => {
+  const data = await getAllData(forceRefresh);
   const employeesMap = {};
   
   // Pre-fill with all known employees so cards always show up
