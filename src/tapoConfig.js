@@ -3,6 +3,10 @@ export const CONFIG = {
   spreadsheetId: "1dEbB0LVzPFMpFaiC2--kLx43RLiWZleh0nzCL4MGVtg",
   // Optional sheet tab name for dynamic device list configuration
   configSheetName: "Config_Devices",
+  // Sampling interval in seconds (align timestamps to 60s buckets)
+  samplingIntervalSeconds: 60,
+  refreshIntervalSeconds: 60,
+  refreshIntervalMs: 60000,
   // List of rooms with their specific colors (Default / Fallback)
   rooms: [
     {
@@ -59,6 +63,5 @@ export const CONFIG = {
       tempRange: [-25, -15],
       humRange: [30, 80]
     }
-  ],
-  refreshIntervalMs: 60000, // อัปเดตทุกๆ 1 นาที
+  ]
 };

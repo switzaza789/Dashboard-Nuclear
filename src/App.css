@@ -189,15 +189,15 @@
 /* --- TV Dashboard Grid Styles --- */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: clamp(10px, 0.8vw, 20px);
   height: 100%;
   width: 100%;
   min-height: 0;
   min-width: 0;
   box-sizing: border-box;
-  padding: clamp(12px, 0.8vw, 24px);
+  padding: clamp(10px, 0.8vw, 20px);
   background-color: #030712;
 }
 
@@ -226,19 +226,13 @@ body.is-dragging-dashboard {
   background: rgba(56, 189, 248, 0.4);
 }
 
-/* Responsive Overrides for Stacked Mobile Layout */
-@media (max-width: 1279px) {
-  .app-viewport-container {
-    height: auto !important;
-    min-height: 100vh;
-    overflow: auto !important;
-  }
+/* Prevent viewport collapse on browser zoom */
+.app-viewport-container {
+  min-width: 1000px;
+}
 
-  .main-content-area {
-    overflow: visible !important;
-    flex: none !important;
-    height: auto !important;
-  }
+.main-content-area {
+  min-width: 1000px;
 }
 
 /* ======================================================== */
@@ -250,7 +244,7 @@ body.is-dragging-dashboard {
 
 .is-tv-mode .dashboard-grid {
   gap: 16px;
-  padding: 16px;
+  padding: 12px;
 }
 
 .is-tv-mode .glass-panel {
@@ -273,4 +267,21 @@ body.is-dragging-dashboard {
 .is-tv-mode .recharts-cartesian-axis-tick text {
   font-size: 12px !important;
   font-weight: bold !important;
+}
+
+/* ======================================================== */
+/* 🖥️ FULLSCREEN IMMERSIVE MODE STYLING */
+/* ======================================================== */
+.is-fullscreen {
+  padding: 0 !important;
+  height: 100vh !important;
+}
+
+.is-fullscreen .main-content-area {
+  padding: 6px 10px !important;
+  height: calc(100vh - 42px) !important;
+}
+
+.is-fullscreen .dashboard-grid {
+  height: 100% !important;
 }

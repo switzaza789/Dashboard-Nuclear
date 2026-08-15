@@ -5,7 +5,7 @@ import EmployeeCard from './EmployeeCard';
 
 const CalendarDashboardPanel = ({
   data: { processedEmployees, visibleEmployees = [], hiddenEmployeeEmails = [], teamOverview, loading, currentDate, currentTimeReal },
-  actions: { setCurrentDate, goToday, prevDay, nextDay, setFullCalendarOpen, setCompareModalOpen, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, toggleEmployeeVisibility, showAllEmployees, hideAllEmployees },
+  actions: { setCurrentDate, goToday, prevDay, nextDay, setFullCalendarOpen, setCompareModalOpen, onOpenDayModal, onOpenEmployeeModal, onOpenEditProfileModal, toggleEmployeeVisibility, showAllEmployees, hideAllEmployees, onOpenManageEmployeesModal },
   isSplitView = true,
   isTvMode = false,
   isAutoPlay = false,
@@ -130,7 +130,7 @@ const CalendarDashboardPanel = ({
               )}
             </div>
 
-            {/* ⚙️ Settings Button moved to Left side away from top-right corner */}
+            {/* ⚙️ Settings Button */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -141,6 +141,21 @@ const CalendarDashboardPanel = ({
             >
               <Settings size={13} />
             </button>
+
+            {/* 👥 Manage Staff Config Button */}
+            {onOpenManageEmployeesModal && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenManageEmployeesModal();
+                }}
+                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/50 transition-all cursor-pointer shrink-0 flex items-center gap-1 text-[10px] font-bold shadow-sm"
+                title="จัดการรายชื่อพนักงานและสถานะ Active/Inactive ใน Config"
+              >
+                <Users size={12} />
+                <span className="hidden sm:inline">จัดการพนักงาน</span>
+              </button>
+            )}
           </div>
 
           {/* 🎯 RIGHT: ALL CONTROLS IN 1 SINGLE ROW */}
@@ -348,7 +363,7 @@ const CalendarDashboardPanel = ({
       )}
 
       {/* Scrollable Main Employee Schedule Grid */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar pr-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 custom-scrollbar schedule-scroll-container pr-1">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full py-12">
             <div className="w-8 h-8 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin mb-3"></div>

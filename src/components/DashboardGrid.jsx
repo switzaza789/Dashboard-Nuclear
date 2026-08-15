@@ -18,7 +18,6 @@ const DashboardGrid = ({
   calendarPanel,
   tapoPanel,
 }) => {
-  const [isStacked, setIsStacked] = useState(false);
   const [dragPosition, setDragPosition] = useState(null);
   const [keyboardActiveModuleId, setKeyboardActiveModuleId] = useState(null);
   
@@ -32,35 +31,6 @@ const DashboardGrid = ({
     document.body.classList.remove('is-dragging-dashboard');
     pointerStateRef.current = null;
   }, [setActiveDrag, setActiveDropTarget]);
-
-  // Screen-width observer for responsive stacking breakpoint (1280px)
-  useEffect(() => {
-    const handleResize = () => {
-      const stacked = window.innerWidth < 1280;
-      setIsStacked(stacked);
-      
-      // If we go below breakpoint while editing, cancel active movements
-      if (stacked && isEditingLayout) {
-        setKeyboardActiveModuleId(null);
-        if (pointerStateRef.current && pointerStateRef.current.handleElement) {
-          try {
-            pointerStateRef.current.handleElement.releasePointerCapture(pointerStateRef.current.pointerId);
-          } catch {
-            /* ignore capture release errors */
-          }
-        }
-        setActiveDrag(null);
-        setDragPosition(null);
-        setActiveDropTarget(null);
-        document.body.classList.remove('is-dragging-dashboard');
-        pointerStateRef.current = null;
-      }
-    };
-    
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isEditingLayout, setActiveDrag, setActiveDropTarget]);
 
   // Escape key cancels dragging and keyboard selections
   useEffect(() => {
@@ -110,112 +80,165 @@ const DashboardGrid = ({
     return null;
   };
 
-  // Pointer Event handlers
+  // Find target column for calendar drag
+  const findColumnUnderPointer = (clientX) => {
+    const container = gridContainerRef.current;
+    if (!container) return 1;
+    const rect = container.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    const colWidth = rect.width / 3;
+    const col = Math.floor(relX / colWidth) + 1;
+    return Math.max(1, Math.min(2, col)); // Calendar is 2 cols, so max start is col 2
+  };
+
   const handlePointerDownDrag = (e, moduleId) => {
-    if (isStacked) return;
+    if (!isEditingLayout) return;
     e.preventDefault();
+    e.stopPropagation();
+
     const handleEl = e.currentTarget;
-    try {
-      handleEl.setPointerCapture(e.pointerId);
-    } catch {
-      /* ignore pointer capture failure */
-    }
+    const pointerId = e.pointerId;
     
+    try {
+      handleEl.setPointerCapture(pointerId);
+    } catch {
+      /* ignore capture errors */
+    }
+
     pointerStateRef.current = {
-      pointerId: e.pointerId,
+      pointerId,
       handleElement: handleEl,
+      startX: e.clientX,
+      startY: e.clientY,
+      isDraggingStarted: false,
       moduleId,
     };
-    
-    setActiveDrag(moduleId);
-    setDragPosition({ x: e.clientX, y: e.clientY });
-    document.body.classList.add('is-dragging-dashboard');
-    setAnnouncement(`เริ่มการเคลื่อนย้ายแผง ${moduleId}`);
   };
 
   const handlePointerMoveDrag = (e, moduleId) => {
-    if (!activeDrag || activeDrag !== moduleId) return;
-    setDragPosition({ x: e.clientX, y: e.clientY });
+    if (!pointerStateRef.current || pointerStateRef.current.moduleId !== moduleId) return;
     
-    const hoveredId = findModuleUnderPointer(e.clientX, e.clientY);
-    if (!hoveredId || hoveredId === moduleId) {
-      setActiveDropTarget(null);
-      return;
-    }
-    setActiveDropTarget(hoveredId);
-  };
+    const { startX, startY, isDraggingStarted } = pointerStateRef.current;
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
 
-  const handlePointerUpDrag = (e, moduleId) => {
-    if (!activeDrag || activeDrag !== moduleId) return;
-    
-    const target = activeDropTarget;
-    
-    // Release pointer capture
-    if (pointerStateRef.current && pointerStateRef.current.handleElement) {
-      try {
-        pointerStateRef.current.handleElement.releasePointerCapture(pointerStateRef.current.pointerId);
-      } catch {
-        /* ignore capture release errors */
+    // 5px slop threshold to prevent accidental clicks
+    if (!isDraggingStarted) {
+      if (dist > 5) {
+        pointerStateRef.current.isDraggingStarted = true;
+        setActiveDrag(moduleId);
+        document.body.classList.add('is-dragging-dashboard');
+        setAnnouncement(`เริ่มเคลื่อนย้ายแผง ${moduleId}`);
+      } else {
+        return;
       }
     }
 
-    if (target !== null && target !== moduleId) {
-      handleSwapOneSlot(moduleId, target);
-      setAnnouncement(`สลับตำแหน่งแผง ${moduleId} กับ ${target} สำเร็จ`);
+    setDragPosition({ x: e.clientX, y: e.clientY });
+
+    if (moduleId === 'calendar') {
+      const targetCol = findColumnUnderPointer(e.clientX);
+      setActiveDropTarget(targetCol);
+    } else {
+      const targetModule = findModuleUnderPointer(e.clientX, e.clientY);
+      if (targetModule && targetModule !== moduleId) {
+        setActiveDropTarget(targetModule);
+      } else {
+        setActiveDropTarget(null);
+      }
     }
-    
+  };
+
+  const handlePointerUpDrag = (e, moduleId) => {
+    if (!pointerStateRef.current || pointerStateRef.current.moduleId !== moduleId) return;
+
+    const { handleElement, pointerId, isDraggingStarted } = pointerStateRef.current;
+
+    if (handleElement) {
+      try {
+        handleElement.releasePointerCapture(pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (isDraggingStarted) {
+      if (moduleId === 'calendar') {
+        const targetCol = findColumnUnderPointer(e.clientX);
+        if (targetCol) {
+          handleMoveCalendar(targetCol);
+          setAnnouncement(`ย้าย Team Schedule ไปที่คอลัมน์ ${targetCol}`);
+        }
+      } else {
+        const targetModule = findModuleUnderPointer(e.clientX, e.clientY);
+        if (targetModule && targetModule !== moduleId) {
+          handleSwapOneSlot(moduleId, targetModule);
+          setAnnouncement(`สลับตำแหน่งแผง ${moduleId} กับ ${targetModule}`);
+        }
+      }
+    }
+
     cleanupDrag();
   };
 
   const handlePointerCancelDrag = (e, moduleId) => {
-    if (activeDrag === moduleId) {
-      cleanupDrag();
-      setAnnouncement('ย้ายตำแหน่งล้มเหลว (Drag cancelled).');
-    }
+    if (!pointerStateRef.current || pointerStateRef.current.moduleId !== moduleId) return;
+    cleanupDrag();
+    setAnnouncement('การลากถูกยกเลิก');
   };
 
   const handleLostPointerCaptureDrag = (e, moduleId) => {
-    if (activeDrag === moduleId) {
+    if (pointerStateRef.current && pointerStateRef.current.moduleId === moduleId) {
       cleanupDrag();
     }
   };
 
-  // Keyboard Movement handlers
+  // Keyboard Navigation Handling
   const handleToggleKeyboardActive = (moduleId) => {
+    if (!isEditingLayout) return;
     if (keyboardActiveModuleId === moduleId) {
       setKeyboardActiveModuleId(null);
-      setAnnouncement(`บันทึกตำแหน่งคีย์บอร์ดของแผง ${moduleId} ชั่วคราว. บันทึกบอร์ดเพื่อยืนยัน.`);
+      setAnnouncement(`ยกเลิกการเลือกแผง ${moduleId}`);
     } else {
       setKeyboardActiveModuleId(moduleId);
-      const isCal = moduleId === 'calendar';
-      const helpText = isCal 
-        ? `เลือกย้ายปฏิทิน. ใช้ลูกศรซ้าย/ขวาเพื่อเปลี่ยนคอลัมน์. กด Enter หรือ Space เพื่อวาง, Escape เพื่อยกเลิก.`
-        : `เลือกย้ายแผง ${moduleId}. ใช้ลูกศรเพื่อสลับกับแผงข้างเคียง. กด Enter หรือ Space เพื่อวาง, Escape เพื่อยกเลิก.`;
-      setAnnouncement(helpText);
+      setAnnouncement(`เลือกแผง ${moduleId} แล้ว ใช้ปุ่มลูกศรเพื่อย้ายตำแหน่ง`);
     }
   };
 
   const handleKeyboardMove = (moduleId, direction) => {
-    const placements = activeLayout.placements;
-    const pos = placements[moduleId];
-    if (!pos) return;
-    
-    let targetCol = pos.column;
-    let targetRow = pos.row;
-    
+    if (!keyboardActiveModuleId) return;
+
+    if (moduleId === 'calendar') {
+      const currentPlacement = activeLayout.placements.calendar;
+      if (direction === 'left' && currentPlacement.column > 1) {
+        handleMoveCalendar(1);
+        setAnnouncement('ย้าย Team Schedule ไปคอลัมน์ 1');
+      } else if (direction === 'right' && currentPlacement.column < 2) {
+        handleMoveCalendar(2);
+        setAnnouncement('ย้าย Team Schedule ไปคอลัมน์ 2');
+      }
+      return;
+    }
+
+    const currentPlacement = activeLayout.placements[moduleId];
+    let targetCol = currentPlacement.column;
+    let targetRow = currentPlacement.row;
+
     if (direction === 'left') targetCol -= 1;
     if (direction === 'right') targetCol += 1;
     if (direction === 'up') targetRow -= 1;
     if (direction === 'down') targetRow += 1;
-    
+
     if (targetCol >= 1 && targetCol <= 3 && targetRow >= 1 && targetRow <= 2) {
-      // Find module occupying target coordinate
-      const targetId = Object.keys(placements).find(key => {
-        const p = placements[key];
-        return p.column === targetCol && p.row === targetRow;
-      });
-      
-      if (targetId && targetId !== moduleId) {
+      let targetId = null;
+      for (const [id, pos] of Object.entries(activeLayout.placements)) {
+        if (id === moduleId) continue;
+        if (pos.column === targetCol && pos.row === targetRow) {
+          targetId = id;
+          break;
+        }
+      }
+
+      if (targetId) {
         handleSwapOneSlot(moduleId, targetId);
         setAnnouncement(`สลับตำแหน่งแผง ${moduleId} กับ ${targetId} ที่คอลัมน์ ${targetCol} แถว ${targetRow}`);
       } else {
@@ -240,29 +263,6 @@ const DashboardGrid = ({
     { id: 'reserved-5', title: 'Reserved Slot 5', panel: <ReservedDashboardPanel slotNumber={5} /> },
     { id: 'reserved-3', title: 'Reserved Slot 6', panel: <ReservedDashboardPanel slotNumber={6} /> },
   ];
-
-  if (isStacked) {
-    // Deterministic vertical stacking order for mobile viewports (< 1280px)
-    const stackedOrder = ['calendar', 'tapo', 'reserved-6', 'reserved-4', 'reserved-5', 'reserved-3'];
-    
-    return (
-      <div className="flex flex-col gap-6 w-full px-4 py-6 overflow-y-auto">
-        {isEditingLayout && (
-          <div className="bg-slate-800 border border-slate-700 text-slate-300 p-3 rounded-xl text-center text-xs font-semibold">
-            การจัดวางหน้าต่างสามารถทำได้ในมุมมองแบบ PC / TV เท่านั้น
-          </div>
-        )}
-        {stackedOrder.map(id => {
-          const reg = modulesRegistry.find(m => m.id === id);
-          return (
-            <div key={id} className="w-full min-h-[400px]">
-              {reg.panel}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
 
   return (
     <div ref={gridContainerRef} className="dashboard-grid relative">

@@ -7,7 +7,7 @@ import FullCalendarModal from './components/FullCalendarModal';
 import EditProfileModal from './components/EditProfileModal';
 import Toast from './components/Toast';
 import { startOfWeek, addDays, subDays } from 'date-fns';
-import { Calendar as CalendarIcon, Columns, Maximize2, ChevronUp, ChevronDown, Settings, Tv, Play, Pause } from 'lucide-react';
+import { Calendar as CalendarIcon, Columns, Maximize2, Minimize2, ChevronUp, ChevronDown, Settings, Tv, Play, Pause } from 'lucide-react';
 
 import TapoDashboard from './components/TapoDashboard';
 import { useDashboardLayout } from './hooks/useDashboardLayout';
@@ -15,6 +15,7 @@ import DashboardGrid from './components/DashboardGrid';
 import CalendarDashboardPanel from './components/CalendarDashboardPanel';
 import DashboardLayoutToolbar from './components/DashboardLayoutToolbar';
 import UnsavedLayoutConfirmModal from './components/UnsavedLayoutConfirmModal';
+import ManageEmployeesModal from './components/ManageEmployeesModal';
 import { getDashboardLayoutKind } from './utils/dashboardLayout';
 import './App.css';
 
@@ -35,7 +36,12 @@ function App() {
     return localStorage.getItem('app_auto_play') === 'true';
   });
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showShortcutModal, setShowShortcutModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+  };
 
   // Sync state to local storage
   useEffect(() => {
@@ -50,13 +56,90 @@ function App() {
     localStorage.setItem('app_auto_play', isAutoPlay);
   }, [isAutoPlay]);
 
-  // ⌨️ Global Keyboard Shortcuts (T: TV Mode, Spacebar: Auto-Play / Pause)
+  // Fullscreen state listener (Detects both HTML5 Fullscreen and Native F11)
+  useEffect(() => {
+    const checkFullscreenState = () => {
+      const isDomFull = Boolean(
+        document.fullscreenElement || 
+        document.webkitFullscreenElement || 
+        document.mozFullScreenElement || 
+        document.msFullscreenElement
+      );
+      
+      // Also detect if user pressed native F11 (Window height equals Screen height)
+      const isWindowFull = typeof window !== 'undefined' && window.screen && (
+        Math.abs(window.innerHeight - window.screen.height) <= 5 ||
+        Math.abs(window.innerHeight - window.screen.availHeight) <= 5
+      );
+
+      const isFull = isDomFull || Boolean(isWindowFull && !window.menubar?.visible);
+      setIsFullscreen(isDomFull || isFull);
+    };
+
+    document.addEventListener('fullscreenchange', checkFullscreenState);
+    document.addEventListener('webkitfullscreenchange', checkFullscreenState);
+    document.addEventListener('mozfullscreenchange', checkFullscreenState);
+    document.addEventListener('MSFullscreenChange', checkFullscreenState);
+    window.addEventListener('resize', checkFullscreenState);
+
+    // Initial check
+    checkFullscreenState();
+
+    return () => {
+      document.removeEventListener('fullscreenchange', checkFullscreenState);
+      document.removeEventListener('webkitfullscreenchange', checkFullscreenState);
+      document.removeEventListener('mozfullscreenchange', checkFullscreenState);
+      document.removeEventListener('MSFullscreenChange', checkFullscreenState);
+      window.removeEventListener('resize', checkFullscreenState);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    const isDomFull = Boolean(
+      document.fullscreenElement || 
+      document.webkitFullscreenElement || 
+      document.mozFullScreenElement || 
+      document.msFullscreenElement
+    );
+
+    if (isDomFull) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(err => console.warn(err));
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    } else {
+      const docEl = document.documentElement;
+      const requestMethod = docEl.requestFullscreen || 
+                            docEl.webkitRequestFullscreen || 
+                            docEl.mozRequestFullScreen || 
+                            docEl.msRequestFullscreen;
+
+      if (requestMethod) {
+        requestMethod.call(docEl, { navigationUI: 'hide' }).catch(() => {
+          // Fallback without options
+          requestMethod.call(docEl).catch(err => {
+            console.error("Fullscreen request failed:", err);
+          });
+        });
+      }
+    }
+  };
+
+  // ⌨️ Global Keyboard Shortcuts (F11 / F: Fullscreen, T: TV Mode, Spacebar: Auto-Play / Pause)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeTag = document.activeElement?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
 
-      if (e.key === 't' || e.key === 'T') {
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
         setIsTvMode(prev => !prev);
       } else if (e.code === 'Space') {
@@ -69,13 +152,13 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Hands-free Auto-Scroll effect for TV Meeting display
+  // Hands-free Auto-Scroll effect for TV Meeting display (Only for Schedule board)
   useEffect(() => {
     if (!isAutoPlay) return;
 
     let direction = 1;
     const interval = setInterval(() => {
-      const scrollContainers = document.querySelectorAll('.custom-scrollbar');
+      const scrollContainers = document.querySelectorAll('.schedule-scroll-container');
       scrollContainers.forEach(container => {
         if (!container) return;
         const maxScroll = container.scrollHeight - container.clientHeight;
@@ -113,11 +196,7 @@ function App() {
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false);
   const [editProfileModalOpen, setEditProfileModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
-
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const showToast = (message, type = 'success') => {
-    setToast({ show: true, message, type });
-  };
+  const [manageEmployeesModalOpen, setManageEmployeesModalOpen] = useState(false);
 
   const layout = useDashboardLayout(showToast);
 
@@ -278,7 +357,7 @@ function App() {
   };
 
   return (
-    <div className={`h-screen w-full bg-[#030712] text-gray-200 font-sans flex flex-col overflow-hidden relative app-viewport-container ${isTvMode ? 'is-tv-mode' : ''}`}>
+    <div className={`h-screen w-full bg-[#030712] text-gray-200 font-sans flex flex-col overflow-hidden relative app-viewport-container ${isTvMode || isFullscreen ? 'is-tv-mode' : ''} ${isFullscreen ? 'is-fullscreen' : ''}`}>
       
       {/* Visually Hidden Aria Live Announcements for Accessibility */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">
@@ -341,20 +420,6 @@ function App() {
                 <span>ปรับแต่งบอร์ด</span>
               </button>
             )}
-
-            <button 
-              onClick={() => {
-                if (!document.fullscreenElement) {
-                  document.documentElement.requestFullscreen().catch(() => {});
-                } else {
-                  document.exitFullscreen();
-                }
-              }}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white text-xs font-medium border border-gray-700 transition-colors cursor-pointer"
-              title="ขยายเบราว์เซอร์เต็มจอ"
-            >
-              <Maximize2 size={13} /> Fullscreen
-            </button>
           </div>
 
           {/* Hide nav button — always last in bar */}
@@ -446,7 +511,8 @@ function App() {
                   },
                   toggleEmployeeVisibility,
                   showAllEmployees,
-                  hideAllEmployees
+                  hideAllEmployees,
+                  onOpenManageEmployeesModal: () => setManageEmployeesModalOpen(true)
                 }}
                 isSplitView={true}
                 isTvMode={isTvMode}
@@ -496,7 +562,8 @@ function App() {
                 },
                 toggleEmployeeVisibility,
                 showAllEmployees,
-                hideAllEmployees
+                hideAllEmployees,
+                onOpenManageEmployeesModal: () => setManageEmployeesModalOpen(true)
               }}
               isSplitView={false}
             />
@@ -509,6 +576,7 @@ function App() {
       <TeamCompareModal isOpen={compareModalOpen} onClose={() => setCompareModalOpen(false)} employees={processedEmployees} initialDate={currentDate} />
       <FullCalendarModal isOpen={fullCalendarOpen} onClose={() => setFullCalendarOpen(false)} currentDate={currentDate} employees={processedEmployees} onColorChange={handleUpdateColor} />
       <EditProfileModal isOpen={editProfileModalOpen} onClose={() => { setEditProfileModalOpen(false); setEditingEmployee(null); }} employee={editingEmployee} onSave={handleUpdateProfile} />
+      <ManageEmployeesModal isOpen={manageEmployeesModalOpen} onClose={() => setManageEmployeesModalOpen(false)} onRefreshData={refreshData} showToast={showToast} />
       
       {/* Unsaved exit transition confirmation modal */}
       <UnsavedLayoutConfirmModal
@@ -550,6 +618,11 @@ function App() {
             </div>
 
             <div className="flex flex-col gap-3 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="font-medium text-gray-300">สลับโหมดเต็มหน้าจอของ Windows (ซ่อนแท็บและ URL)</span>
+                <kbd className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-300 border border-blue-500/50 font-mono font-extrabold text-xs shadow-sm">F11</kbd>
+              </div>
+
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-slate-800">
                 <span className="font-medium text-gray-300">สลับโหมด TV Meeting (ตัวหนังสือใหญ่พิเศษ)</span>
                 <kbd className="px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/50 font-mono font-extrabold text-xs shadow-sm">T</kbd>

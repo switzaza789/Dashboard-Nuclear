@@ -3,37 +3,39 @@ import Papa from 'papaparse';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Thermometer, Droplets, Clock, CheckSquare, Square, Expand, Minimize2, X, Settings, Check, Maximize2 } from 'lucide-react';
+import { Thermometer, Droplets, Clock, Expand, Minimize2, X, Settings, Check, Maximize2 } from 'lucide-react';
 import { CONFIG } from '../tapoConfig';
-import './tapoDashboard.css'; // Import the scoped CSS
+import './tapoDashboard.css';
 
 // 100% Custom React Legend (Rendered outside Recharts completely to avoid SVG disappearing bugs)
-const CustomLegend = ({ payload, onHover, type }) => {
+const CustomLegend = ({ payload, onHover, type, isTwoColumns = false }) => {
   if (!payload || payload.length === 0) return null;
   
   return (
-    <div className="custom-legend w-full mb-2 flex flex-col items-center gap-1.5">
+    <div className={`custom-legend w-full mb-1 ${isTwoColumns ? 'grid grid-cols-2 gap-1 sm:gap-1.5' : 'flex flex-col gap-1'}`}>
       {payload.map((entry, index) => {
         const valText = type === 'temp' ? entry.latestTemp : entry.latestHum;
         const displayName = entry.name.toLowerCase() === 'haier' ? 'Haier' : entry.name;
         return (
           <div 
             key={`item-${index}`} 
-            className="custom-legend-item px-3 py-1 rounded-lg border flex items-center justify-between gap-3 text-[11px] font-bold cursor-pointer transition-all w-full max-w-[260px] shrink-0"
+            className="custom-legend-item px-2.5 py-1 rounded-xl border flex items-center justify-between gap-1.5 text-[11px] font-bold cursor-pointer transition-all w-full shrink-0"
             onMouseEnter={() => onHover && onHover(entry.id)}
             onMouseLeave={() => onHover && onHover(null)}
             style={{ 
               boxShadow: entry.isHovered ? `0 0 12px ${entry.color}` : 'none',
-              borderColor: entry.isHovered ? entry.color : 'rgba(255, 255, 255, 0.15)',
+              borderColor: entry.isHovered ? entry.color : 'rgba(255, 255, 255, 0.12)',
               backgroundColor: entry.isHovered ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.75)',
-              transform: entry.isHovered ? 'scale(1.02)' : 'none'
+              transform: entry.isHovered ? 'scale(1.01)' : 'none'
             }}
           >
-            <span style={{ color: entry.color }} className="font-bold flex items-center gap-1.5 truncate">
-              <span className="shrink-0">{entry.icon}</span> 
+            <span style={{ color: entry.color }} className="font-bold flex items-center gap-1.5 truncate text-[11px]">
+              <span className="shrink-0 text-xs">{entry.icon}</span> 
               <span className="truncate">{displayName}:</span>
             </span>
-            <span className="font-mono text-white text-[12px] font-extrabold shrink-0 ml-auto whitespace-nowrap">{valText}</span>
+            <span className="legend-axis text-white font-extrabold text-[12px] tracking-wide shrink-0 ml-auto font-mono">
+              {valText} {type === 'temp' ? '°C' : '%'}
+            </span>
           </div>
         );
       })}
@@ -98,7 +100,38 @@ function parseConfigDevicesCSV(csvText) {
   }
 }
 
-export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode = false, onToggleFullscreen }) {
+// Helper to parse date string into timestamp & formatted time
+function parseTapoDate(rawTime) {
+  if (!rawTime) return { timestamp: null, rawDate: '', time: '' };
+  const cleanTime = String(rawTime).trim().replace(/\s+/g, ' ');
+  let parsedDate = new Date(cleanTime);
+
+  if (isNaN(parsedDate.getTime())) {
+    // Format: MM/DD/YYYY HH:mm or DD/MM/YYYY HH:mm
+    const m = cleanTime.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})\s+(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
+    if (m) {
+      let d = new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]), Number(m[4]), Number(m[5]), Number(m[6] || 0));
+      if (!isNaN(d.getTime())) {
+        parsedDate = d;
+      }
+    }
+  }
+
+  const valid = !isNaN(parsedDate.getTime());
+  return {
+    timestamp: valid ? parsedDate.getTime() : null,
+    rawDate: cleanTime,
+    time: valid ? parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : cleanTime
+  };
+}
+
+export default function TapoDashboard({ 
+  viewMode, 
+  displayMode = 'full', 
+  isTvMode = false, 
+  onToggleFullscreen,
+  placement = { columnSpan: 1, rowSpan: 1 } 
+}) {
   const [rooms, setRooms] = useState(CONFIG.rooms);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +148,20 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
     CONFIG.rooms.reduce((acc, room) => ({...acc, [room.id]: true}), {})
   );
   const [showSettingsPopover, setShowSettingsPopover] = useState(false);
+
+  // Determine active spans based on displayMode and placement
+  const colSpan = displayMode === 'full' ? 2 : (placement?.columnSpan || 1);
+  const rowSpan = displayMode === 'full' ? 2 : (placement?.rowSpan || 1);
+
+  // Layout size modes (1x1, 2x1, 1x2, 2x2)
+  const is2x2 = (colSpan >= 2 && rowSpan >= 2) || displayMode === 'full';
+  const is2x1 = colSpan >= 2 && rowSpan === 1 && displayMode !== 'full';
+  const is1x2 = colSpan === 1 && rowSpan >= 2 && displayMode !== 'full';
+  const is1x1 = colSpan === 1 && rowSpan === 1 && displayMode !== 'full';
+
+  // Chart visibility rules: 2x2 and 1x2 show charts; 1x1 and 2x1 hide charts (unless expanded)
+  const showCharts = is2x2 || is1x2;
+  const isTwoColumnsLegend = is2x2;
 
   useEffect(() => {
     if (!showSettingsPopover) return;
@@ -152,14 +199,12 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
           });
 
           if (configRes && configRes.data && configRes.data.length > 0) {
-            // Check if there are meaningful headers
             const parsedDevices = parseConfigDevicesCSV(Papa.unparse(configRes.data));
             if (parsedDevices && parsedDevices.length > 0) {
               currentRooms = parsedDevices;
             }
           }
         } catch {
-          // Fallback gracefully to default CONFIG.rooms
           currentRooms = CONFIG.rooms;
         }
 
@@ -174,6 +219,8 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
           return updated;
         });
 
+        const samplingMs = (CONFIG.samplingIntervalSeconds || 60) * 1000;
+
         // 2. Fetch all rooms data in parallel
         const fetchPromises = currentRooms.map(room => {
           const url = `https://docs.google.com/spreadsheets/d/${CONFIG.spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(room.sheetName)}`;
@@ -184,66 +231,84 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
               header: true,
               skipEmptyLines: true,
               complete: (results) => {
-                const roomData = results.data.map(row => {
-                  const values = Object.values(row);
-                  let rawTime = values[0] || '';
-                  
-                  let timestamp = new Date(rawTime).getTime();
-                  if (isNaN(timestamp)) timestamp = 0;
+                const rawRows = results.data || [];
+                // Slice recent rows for performance
+                const recentRows = rawRows.length > 600 ? rawRows.slice(-600) : rawRows;
 
-                  let timeStr = rawTime;
-                  if(timeStr.includes(' ')) {
-                    timeStr = timeStr.split(' ')[1];
-                  }
-                  
+                const roomData = recentRows.map(row => {
+                  const keys = Object.keys(row);
+                  const values = Object.values(row);
+                  const findVal = (...aliases) => {
+                    const k = keys.find(key => aliases.some(a => key.toLowerCase().includes(a.toLowerCase())));
+                    return k ? row[k] : undefined;
+                  };
+
+                  const rawTime = (findVal('วัน', 'time', 'date', 'เวลา') || values[0] || '').trim();
+                  const rawTemp = (findVal('อุณหภูมิ', 'temp', 'temperature') || values[1] || '').trim();
+                  const rawHum = (findVal('ความชื้น', 'hum', 'humidity') || values[2] || '').trim();
+
+                  const { timestamp, rawDate, time } = parseTapoDate(rawTime);
+                  if (!timestamp) return null;
+
+                  const numTemp = parseFloat(String(rawTemp).replace(/[^\d.-]/g, ''));
+                  const numHum = parseFloat(String(rawHum).replace(/[^\d.-]/g, ''));
+
                   return {
                     timestamp,
-                    time: timeStr,
-                    rawDate: rawTime,
-                    [`${room.id}_temp`]: parseFloat(values[1]) || null,
-                    [`${room.id}_hum`]: parseFloat(values[2]) || null
+                    rawDate,
+                    time,
+                    temp: !isNaN(numTemp) ? numTemp : null,
+                    hum: !isNaN(numHum) ? numHum : null,
                   };
-                });
-                resolve(roomData);
+                }).filter(item => item !== null && item.timestamp !== null);
+
+                resolve({ roomId: room.id, data: roomData });
               },
-              error: (err) => {
-                console.warn(`Could not load sheet for ${room.sheetName}:`, err);
-                resolve([]); // Don't crash entire dashboard if one tab fails
-              }
+              error: () => resolve({ roomId: room.id, data: [] })
             });
           });
         });
 
         const allRoomsData = await Promise.all(fetchPromises);
         
-        const mergedDataMap = {};
+        // Merge room data by timestamp bucket
+        const timeMap = new Map();
         
-        allRoomsData.forEach(roomDataArray => {
-          roomDataArray.forEach(item => {
-            if (!item.time) return;
-            if (!mergedDataMap[item.timestamp]) {
-              mergedDataMap[item.timestamp] = { time: item.time, rawDate: item.rawDate, timestamp: item.timestamp };
+        allRoomsData.forEach(({ roomId, data: rData }) => {
+          rData.forEach(item => {
+            const roundedTime = Math.floor(item.timestamp / samplingMs) * samplingMs;
+            
+            if (!timeMap.has(roundedTime)) {
+              timeMap.set(roundedTime, {
+                timestamp: roundedTime,
+                time: item.time,
+                rawDate: item.rawDate,
+              });
             }
-            Object.assign(mergedDataMap[item.timestamp], item);
+            const record = timeMap.get(roundedTime);
+            if (item.temp !== null) record[`${roomId}_temp`] = item.temp;
+            if (item.hum !== null) record[`${roomId}_hum`] = item.hum;
           });
         });
 
-        const finalData = Object.values(mergedDataMap).sort((a, b) => a.timestamp - b.timestamp);
-        
-        setData(finalData);
-        setLoading(false);
+        const mergedData = Array.from(timeMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+        setData(mergedData);
       } catch (err) {
+        console.error('Fetch Tapo Error:', err);
         setError(err.message);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    intervalId = setInterval(fetchData, CONFIG.refreshIntervalMs);
+    const intervalMs = (CONFIG.refreshIntervalSeconds || 60) * 1000;
+    intervalId = setInterval(fetchData, intervalMs);
 
     return () => clearInterval(intervalId);
   }, []);
 
+  // Filter Data according to timeFilter
   const filteredData = useMemo(() => {
     if (data.length === 0) return data;
     
@@ -272,11 +337,14 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
     else if (timeFilter === '24h') cutoff = 24 * 60 * 60 * 1000;
     
     const minTimestamp = latestTimestamp - cutoff;
-    return data.filter(item => item.timestamp >= minTimestamp);
+    const result = data.filter(item => item.timestamp >= minTimestamp);
+    return result.length > 0 ? result : data; // Fallback to all data if filter yields 0
   }, [data, timeFilter, startDate, endDate]);
 
   const latestValues = useMemo(() => {
     const latest = {};
+    const dataSource = filteredData.length > 0 ? filteredData : data;
+
     rooms.forEach(room => {
       latest[room.id] = { 
         temp: '--', hum: '--', tempTrend: 0, humTrend: 0, isAlert: false, tempAlert: false, humAlert: false,
@@ -290,12 +358,12 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
       let tMax = -Infinity, tMin = Infinity, tSum = 0, tCount = 0;
       let hMax = -Infinity, hMin = Infinity, hSum = 0, hCount = 0;
       
-      for (let i = filteredData.length - 1; i >= 0; i--) {
-        const row = filteredData[i];
+      for (let i = dataSource.length - 1; i >= 0; i--) {
+        const row = dataSource[i];
         const temp = row[`${room.id}_temp`];
         const hum = row[`${room.id}_hum`];
         
-        if (temp != null) {
+        if (temp != null && !isNaN(temp)) {
           if (lastTemp === null) lastTemp = temp;
           else if (prevTemp === null) prevTemp = temp;
           
@@ -305,7 +373,7 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
           tCount++;
         }
         
-        if (hum != null) {
+        if (hum != null && !isNaN(hum)) {
           if (lastHum === null) lastHum = hum;
           else if (prevHum === null) prevHum = hum;
           
@@ -353,25 +421,22 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
       }
     });
     return latest;
-  }, [filteredData]);
+  }, [filteredData, data, rooms]);
 
   // Payload for Custom Legend
   const legendPayload = useMemo(() => {
     return rooms
       .filter(room => visibleRooms[room.id])
-      .map(room => {
-        const stats = latestValues[room.id];
-        return {
-          id: room.id,
-          icon: room.icon,
-          name: room.name || room.sheetName,
-          latestTemp: stats ? `${stats.temp}°C` : 'N/A',
-          latestHum: stats ? `${stats.hum}%` : 'N/A',
-          color: room.color,
-          isHovered: hoveredRoom === room.id
-        };
-      });
-  }, [rooms, visibleRooms, hoveredRoom, latestValues]);
+      .map(room => ({
+        id: room.id,
+        name: room.name || room.sheetName,
+        color: room.color,
+        icon: room.icon,
+        latestTemp: latestValues[room.id]?.temp ?? '--',
+        latestHum: latestValues[room.id]?.hum ?? '--',
+        isHovered: hoveredRoom === room.id
+      }));
+  }, [rooms, visibleRooms, latestValues, hoveredRoom]);
 
   const { tempTicks, humTicks } = useMemo(() => {
     let globalTempMin = Infinity;
@@ -418,19 +483,30 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
 
     return { tempTicks: tTicks, humTicks: hTicks };
   }, [latestValues, visibleRooms]);
+
   const latestTimeStr = useMemo(() => {
-    if (!filteredData || filteredData.length === 0) return 'N/A';
-    const last = filteredData[filteredData.length - 1];
+    const dataSource = filteredData.length > 0 ? filteredData : data;
+    if (dataSource.length === 0) return 'N/A';
+    const last = dataSource[dataSource.length - 1];
     return last.rawDate || last.time || 'N/A';
-  }, [filteredData]);
+  }, [filteredData, data]);
 
   if (loading && data.length === 0) {
-    return <div className="loading">Loading dashboard data from Google Sheets...</div>;
+    return (
+      <div className="tapo-dashboard-container flex items-center justify-center p-6 text-cyan-400 font-mono text-xs">
+        <Clock size={16} className="animate-spin mr-2" /> กำลังโหลดข้อมูล Tapo Dashboard จาก Google Sheets...
+      </div>
+    );
   }
 
-  if (error) {
-    return <div className="loading" style={{color: '#ef4444'}}>Error: {error}</div>;
+  if (error && data.length === 0) {
+    return (
+      <div className="tapo-dashboard-container flex items-center justify-center p-6 text-rose-400 font-mono text-xs">
+        ข้อผิดพลาด: {error}
+      </div>
+    );
   }
+
   let leftAxisColor = "var(--text-muted)";
   let leftAxisFilter = "none";
   let leftAxisWeight = "normal";
@@ -446,61 +522,45 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
     }
   }
 
+  // Dynamic grid container class: side-by-side (2 columns) across all layout sizes
+  const getGridClass = () => {
+    if (expandedChart) return 'flex flex-col flex-1 min-h-0 overflow-hidden';
+    return 'grid grid-cols-2 gap-2.5 flex-1 min-h-0 overflow-y-auto custom-scrollbar';
+  };
+
   return (
-    <div className={`tapo-dashboard-container w-full h-full ${viewMode === 'split' ? 'is-split-view' : ''} ${displayMode === 'compact' ? 'is-compact-mode' : ''}`}>
-      <div className="dashboard-content">
-        <div className="dashboard-header flex items-center justify-between px-3 py-1.5 border-b border-gray-800/40" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <div style={{ textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>Tapo Central Dashboard</h2>
+    <div className={`tapo-dashboard-container w-full h-full flex flex-col min-w-0 min-h-0 overflow-hidden ${viewMode === 'split' ? 'is-split-view' : ''} ${displayMode === 'compact' ? 'is-compact-mode' : ''} ${is1x1 ? 'is-layout-1x1' : ''} ${is2x1 ? 'is-layout-2x1' : ''} ${is1x2 ? 'is-layout-1x2' : ''} ${is2x2 ? 'is-layout-2x2' : ''}`}>
+      <div className="dashboard-content flex flex-col flex-1 min-h-0 w-full">
+        {/* Top Header */}
+        <div className="dashboard-header flex items-center justify-between px-2 py-1 border-b border-gray-800/40 mb-1.5 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-xs sm:text-sm font-bold text-gray-200 truncate m-0">Tapo Central Dashboard</h2>
             {latestTimeStr !== 'N/A' && (
-              <span className="px-2 py-0.5 rounded-lg bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-[11px] sm:text-xs font-bold font-mono shadow-sm flex items-center gap-1">
-                <Clock size={12} className="text-cyan-400" />
-                <span>อัปเดตล่าสุด: {latestTimeStr}</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 text-[9.5px] font-bold font-mono shadow-sm flex items-center gap-1 shrink-0">
+                <Clock size={10} className="text-cyan-400" />
+                <span className="truncate">อัปเดต: {latestTimeStr}</span>
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginRight: '28px' }}>
+          
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 setShowSettingsPopover(true);
               }}
-              style={{
-                padding: '6px',
-                backgroundColor: '#1f2937',
-                border: '1px solid #374151',
-                borderRadius: '8px',
-                color: '#06b6d4',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s',
-              }}
-              className="hover:text-white hover:bg-slate-700"
+              className="p-1 bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 hover:border-cyan-500/50 rounded-lg text-cyan-400 hover:text-white transition-all shadow-sm flex items-center justify-center cursor-pointer"
               title="ตั้งค่าช่วงเวลาและการกรองห้อง"
             >
-              <Settings size={15} />
+              <Settings size={13} />
             </button>
             {onToggleFullscreen && (
               <button 
                 onClick={onToggleFullscreen}
-                style={{
-                  padding: '6px',
-                  backgroundColor: '#1f2937',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  color: '#06b6d4',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
-                }}
-                className="hover:text-white hover:bg-slate-700"
+                className="p-1 bg-slate-800/80 hover:bg-slate-700 border border-slate-700/80 hover:border-cyan-500/50 rounded-lg text-cyan-400 hover:text-white transition-all shadow-sm flex items-center justify-center cursor-pointer"
                 title={viewMode === 'tapo' ? "ย่อหน้าต่างกลับเป็นแบบแยกจอ" : "ขยาย Tapo Dashboard เต็มจอ"}
               >
-                {viewMode === 'tapo' ? <Minimize2 size={15} /> : <Expand size={15} />}
+                {viewMode === 'tapo' ? <Minimize2 size={13} /> : <Expand size={13} />}
               </button>
             )}
           </div>
@@ -510,60 +570,33 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
         {showSettingsPopover && (
           <div 
             onClick={(e) => e.stopPropagation()} 
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundColor: 'rgba(11, 15, 25, 0.97)',
-              backdropFilter: 'blur(12px)',
-              borderRadius: '16px',
-              padding: '20px',
-              zIndex: 95,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              textAlign: 'left',
-            }}
-            className="animate-in fade-in duration-100"
+            className="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-2xl p-4 z-[95] flex flex-col gap-3 text-left animate-in fade-in duration-100"
           >
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Settings size={16} className="text-cyan-400" />
+            <div className="flex justify-between items-center border-b border-white/10 pb-2">
+              <h3 className="m-0 text-sm font-bold text-slate-200 flex items-center gap-2">
+                <Settings size={15} className="text-cyan-400" />
                 ตั้งค่าแสดงผล Tapo
               </h3>
               <button 
                 onClick={() => setShowSettingsPopover(false)}
-                style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '18px',
-                  cursor: 'pointer',
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                className="hover:bg-white/10"
+                className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }} className="custom-scrollbar">
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-1">
               {/* Time Filter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Clock size={12} className="text-cyan-400" /> ช่วงเวลาที่ต้องการดู
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Clock size={11} className="text-cyan-400" /> ช่วงเวลาที่ต้องการดู
                 </label>
                 <select 
                   value={timeFilter} 
                   onChange={(e) => setTimeFilter(e.target.value)} 
-                  className="modern-select"
-                  style={{ width: '100%' }}
+                  className="modern-select w-full text-xs"
                 >
                   <option value="1h">1 ชั่วโมงล่าสุด</option>
                   <option value="3h">3 ชั่วโมงล่าสุด</option>
@@ -574,23 +607,21 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
                 </select>
 
                 {timeFilter === 'custom' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', padding: '10px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>เริ่มต้น:</span>
+                  <div className="flex flex-col gap-2 mt-1 p-2 bg-white/[0.02] rounded-lg border border-white/5">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400">เริ่มต้น:</span>
                       <input 
                         type="date" 
-                        className="modern-input" 
-                        style={{ width: '100%', fontSize: '12px' }}
+                        className="modern-input w-full text-xs" 
                         value={startDate} 
                         onChange={(e) => setStartDate(e.target.value)} 
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>สิ้นสุด:</span>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400">สิ้นสุด:</span>
                       <input 
                         type="date" 
-                        className="modern-input" 
-                        style={{ width: '100%', fontSize: '12px' }}
+                        className="modern-input w-full text-xs" 
                         value={endDate} 
                         onChange={(e) => setEndDate(e.target.value)} 
                       />
@@ -600,48 +631,30 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
               </div>
 
               {/* Room Toggles */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   เลือกเปิด/ปิดกราฟแต่ละห้อง
                 </label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div className="flex flex-col gap-1.5">
                   {rooms.map(room => (
                     <div 
                       key={room.id} 
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        border: '1px solid',
-                        borderColor: visibleRooms[room.id] ? 'rgba(6, 182, 212, 0.3)' : 'rgba(255,255,255,0.04)',
-                        backgroundColor: visibleRooms[room.id] ? 'rgba(6, 182, 212, 0.08)' : 'transparent',
-                        color: visibleRooms[room.id] ? '#ffffff' : '#64748b',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        transition: 'all 0.2s',
-                      }}
+                      className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                        visibleRooms[room.id] 
+                          ? 'border-cyan-500/30 bg-cyan-500/10 text-white font-medium' 
+                          : 'border-white/5 bg-transparent text-slate-400'
+                      }`}
                       onClick={() => toggleRoom(room.id)}
                     >
-                      <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '14px' }}>{room.icon}</span>
+                      <span className="flex-1 flex items-center gap-2">
+                        <span className="text-sm">{room.icon}</span>
                         <span>{room.name || room.sheetName}</span>
                       </span>
-                      <div style={{
-                        width: '15px',
-                        height: '15px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1px solid',
-                        borderColor: visibleRooms[room.id] ? '#06b6d4' : '#475569',
-                        backgroundColor: visibleRooms[room.id] ? '#06b6d4' : 'transparent',
-                        color: '#0f172a',
-                        transition: 'all 0.2s',
-                      }}>
+                      <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                        visibleRooms[room.id] 
+                          ? 'bg-cyan-500 border-cyan-500 text-slate-950' 
+                          : 'border-slate-600 bg-transparent'
+                      }`}>
                         {visibleRooms[room.id] && <Check size={10} strokeWidth={3} />}
                       </div>
                     </div>
@@ -651,191 +664,216 @@ export default function TapoDashboard({ viewMode, displayMode = 'full', isTvMode
             </div>
 
             {/* Footer Done button */}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px' }}>
+            <div className="border-t border-white/10 pt-2">
               <button
                 onClick={() => setShowSettingsPopover(false)}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  backgroundColor: '#06b6d4',
-                  color: '#0f172a',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-                className="hover:bg-cyan-400"
+                className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-md"
               >
-                <Check size={14} strokeWidth={3} />
+                <Check size={13} strokeWidth={3} />
                 <span>บันทึกและปิดการตั้งค่า</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Charts Section - Side by Side */}
-        <div className="charts-grid-side-by-side">
+        {/* Charts & Sensor Cards Section */}
+        <div className={getGridClass()}>
           
-          {/* Temperature Chart */}
-          <div className={`glass-panel chart-container ${expandedChart === 'temp' ? 'expanded-fullscreen' : ''}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 style={{margin: 0, display: 'flex', alignItems: 'center'}}><Thermometer size={24} color="#ef4444" style={{marginRight: 8}} /> กราฟอุณหภูมิ (°C)</h3>
-              <button onClick={() => setExpandedChart(expandedChart === 'temp' ? null : 'temp')} className="p-2 bg-[#1f2937] hover:bg-[#374151] border border-[#374151] rounded-lg text-gray-400 hover:text-white transition-colors" title={expandedChart === 'temp' ? "ย่อหน้าต่าง" : "ขยายเต็มจอ"}>
-                {expandedChart === 'temp' ? <X size={20} /> : <Maximize2 size={20} />}
-              </button>
-            </div>
-            
-            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="temp" isTvMode={isTvMode} />
-            
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} onMouseLeave={() => setHoveredRoom(null)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                  <XAxis 
-                    dataKey="rawDate" 
-                    stroke="var(--text-muted)" 
-                    tick={{fill: 'var(--text-muted)', fontSize: 10}} 
-                    minTickGap={15}
-                    tickFormatter={(val) => {
-                      if (val && val.includes(' ')) return val.split(' ')[1];
-                      return val;
-                    }}
-                  />
-                  <YAxis 
-                    stroke={leftAxisColor} 
-                    tick={{fill: leftAxisColor, fontWeight: leftAxisWeight}} 
-                    ticks={tempTicks.length > 0 ? tempTicks : undefined}
-                    domain={tempTicks.length > 0 ? [tempTicks[0], tempTicks[tempTicks.length - 1]] : ['auto', 'auto']}
-                    style={{ filter: leftAxisFilter, transition: 'all 0.3s ease' }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(15, 23, 42, 0.65)', 
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      borderColor: 'rgba(255, 255, 255, 0.15)', 
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      fontSize: '11px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-                    }}
-                    itemStyle={{ color: 'var(--text-main)', padding: '2px 0' }}
-                    labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}
-                    labelFormatter={(label) => `เวลา: ${label}`}
-                  />
-                  {rooms.map(room => {
-                    if (!visibleRooms[room.id]) return null;
-                    const isHovered = hoveredRoom === room.id;
-                    const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
-                    
-                    return (
-                      <Line 
-                        key={`${room.id}_temp`}
-                        type="monotone" 
-                        dataKey={`${room.id}_temp`} 
-                        name={`${room.icon} ${room.name || room.sheetName}`} 
-                        stroke={room.color} 
-                        strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
-                        strokeOpacity={isOthersHovered ? 0.15 : 1}
-                        style={{
-                          filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',
-                          transition: 'all 0.3s ease'
+          {/* Temperature Section */}
+          {(!expandedChart || expandedChart === 'temp') && (
+            <div className={`glass-panel chart-container flex flex-col rounded-xl border border-white/10 bg-slate-900/60 backdrop-blur-md p-2.5 sm:p-3 transition-all min-h-0 ${expandedChart === 'temp' ? 'expanded-fullscreen flex-1' : (showCharts ? 'flex-1' : 'justify-start')}`}>
+              <div className="flex justify-between items-center mb-1.5 shrink-0">
+                <h3 className="m-0 text-xs font-bold text-gray-300 flex items-center gap-1.5 whitespace-nowrap">
+                  <Thermometer size={14} className="text-rose-500 shrink-0" /> 
+                  <span>อุณหภูมิ (°C)</span>
+                </h3>
+                <button 
+                  onClick={() => setExpandedChart(expandedChart === 'temp' ? null : 'temp')} 
+                  className="p-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title={expandedChart === 'temp' ? "ย่อหน้าต่าง" : "ขยายเต็มจอ"}
+                >
+                  {expandedChart === 'temp' ? <X size={13} /> : <Maximize2 size={13} />}
+                </button>
+              </div>
+              
+              {/* Sensor Pills / Custom Legend */}
+              <div className="shrink-0 w-full">
+                <CustomLegend 
+                  payload={legendPayload} 
+                  onHover={setHoveredRoom} 
+                  type="temp" 
+                  isTwoColumns={isTwoColumnsLegend} 
+                />
+              </div>
+              
+              {/* Line Chart: Visible in 2x2, 1x2, or when Expanded */}
+              {(showCharts || expandedChart === 'temp') && (
+                <div className="flex-1 min-h-[140px] sm:min-h-[160px] w-full mt-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={filteredData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }} onMouseLeave={() => setHoveredRoom(null)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+                      <XAxis 
+                        dataKey="rawDate" 
+                        stroke="var(--text-muted)" 
+                        tick={{fill: 'var(--text-muted)', fontSize: 9}} 
+                        minTickGap={15}
+                        tickFormatter={(val) => {
+                          if (val && val.includes(' ')) return val.split(' ')[1];
+                          return val;
                         }}
-                        dot={false}
-                        activeDot={{ r: isHovered ? 6 : 4 }}
-                        connectNulls
-                        onMouseEnter={() => setHoveredRoom(room.id)}
-                        onMouseLeave={() => setHoveredRoom(null)}
                       />
-                    );
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
+                      <YAxis 
+                        stroke={leftAxisColor} 
+                        tick={{fill: leftAxisColor, fontWeight: leftAxisWeight, fontSize: 9}} 
+                        ticks={tempTicks.length > 0 ? tempTicks : undefined}
+                        domain={tempTicks.length > 0 ? [tempTicks[0], tempTicks[tempTicks.length - 1]] : ['auto', 'auto']}
+                        style={{ filter: leftAxisFilter, transition: 'all 0.3s ease' }} 
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 23, 42, 0.85)', 
+                          backdropFilter: 'blur(8px)',
+                          WebkitBackdropFilter: 'blur(8px)',
+                          borderColor: 'rgba(255, 255, 255, 0.15)', 
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          fontSize: '10px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+                        }}
+                        itemStyle={{ color: 'var(--text-main)', padding: '1px 0' }}
+                        labelStyle={{ fontWeight: 'bold', marginBottom: '2px', color: 'var(--text-muted)', fontSize: '10px' }}
+                        labelFormatter={(label) => `เวลา: ${label}`}
+                      />
+                      {rooms.map(room => {
+                        if (!visibleRooms[room.id]) return null;
+                        const isHovered = hoveredRoom === room.id;
+                        const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
+                        
+                        return (
+                          <Line 
+                            key={`${room.id}_temp`}
+                            type="monotone" 
+                            dataKey={`${room.id}_temp`} 
+                            name={`${room.icon} ${room.name || room.sheetName}`} 
+                            stroke={room.color} 
+                            strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
+                            strokeOpacity={isOthersHovered ? 0.15 : 1}
+                            style={{
+                              filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',
+                              transition: 'all 0.3s ease'
+                            }}
+                            dot={false}
+                            activeDot={{ r: isHovered ? 5 : 3.5 }}
+                            connectNulls
+                            onMouseEnter={() => setHoveredRoom(room.id)}
+                            onMouseLeave={() => setHoveredRoom(null)}
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Humidity Chart */}
-          <div className={`glass-panel chart-container ${expandedChart === 'hum' ? 'expanded-fullscreen' : ''}`}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 style={{margin: 0, display: 'flex', alignItems: 'center'}}><Droplets size={24} color="#38bdf8" style={{marginRight: 8}} /> กราฟความชื้น (%)</h3>
-              <button onClick={() => setExpandedChart(expandedChart === 'hum' ? null : 'hum')} className="p-2 bg-[#1f2937] hover:bg-[#374151] border border-[#374151] rounded-lg text-gray-400 hover:text-white transition-colors" title={expandedChart === 'hum' ? "ย่อหน้าต่าง" : "ขยายเต็มจอ"}>
-                {expandedChart === 'hum' ? <X size={20} /> : <Maximize2 size={20} />}
-              </button>
-            </div>
-            
-            <CustomLegend payload={legendPayload} onHover={setHoveredRoom} type="hum" isTvMode={isTvMode} />
-            
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} onMouseLeave={() => setHoveredRoom(null)}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
-                  <XAxis 
-                    dataKey="rawDate" 
-                    stroke="var(--text-muted)" 
-                    tick={{fill: 'var(--text-muted)', fontSize: 10}} 
-                    minTickGap={15}
-                    tickFormatter={(val) => {
-                      if (val && val.includes(' ')) return val.split(' ')[1];
-                      return val;
-                    }}
-                  />
-                  <YAxis 
-                    stroke={leftAxisColor} 
-                    tick={{fill: leftAxisColor, fontWeight: leftAxisWeight}} 
-                    ticks={humTicks.length > 0 ? humTicks : undefined}
-                    domain={humTicks.length > 0 ? [humTicks[0], humTicks[humTicks.length - 1]] : ['auto', 'auto']}
-                    style={{ filter: leftAxisFilter, transition: 'all 0.3s ease' }} 
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(15, 23, 42, 0.65)', 
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      borderColor: 'rgba(255, 255, 255, 0.15)', 
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      fontSize: '11px',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
-                    }}
-                    itemStyle={{ color: 'var(--text-main)', padding: '2px 0' }}
-                    labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: 'var(--text-muted)', fontSize: '11px' }}
-                    labelFormatter={(label) => `เวลา: ${label}`}
-                  />
-                  {rooms.map(room => {
-                    if (!visibleRooms[room.id]) return null;
-                    const isHovered = hoveredRoom === room.id;
-                    const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
-                    
-                    return (
-                      <Line 
-                        key={`${room.id}_hum`}
-                        type="monotone" 
-                        dataKey={`${room.id}_hum`} 
-                        name={`${room.icon} ${room.name || room.sheetName}`} 
-                        stroke={room.color} 
-                        strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
-                        strokeOpacity={isOthersHovered ? 0.15 : 1}
-                        style={{
-                          filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',
-                          transition: 'all 0.3s ease'
+          {/* Humidity Section */}
+          {(!expandedChart || expandedChart === 'hum') && (
+            <div className={`glass-panel chart-container flex flex-col rounded-xl border border-white/10 bg-slate-900/60 backdrop-blur-md p-2.5 sm:p-3 transition-all min-h-0 ${expandedChart === 'hum' ? 'expanded-fullscreen flex-1' : (showCharts ? 'flex-1' : 'justify-start')}`}>
+              <div className="flex justify-between items-center mb-1.5 shrink-0">
+                <h3 className="m-0 text-xs font-bold text-gray-300 flex items-center gap-1.5 whitespace-nowrap">
+                  <Droplets size={14} className="text-sky-400 shrink-0" /> 
+                  <span>ความชื้น (%)</span>
+                </h3>
+                <button 
+                  onClick={() => setExpandedChart(expandedChart === 'hum' ? null : 'hum')} 
+                  className="p-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title={expandedChart === 'hum' ? "ย่อหน้าต่าง" : "ขยายเต็มจอ"}
+                >
+                  {expandedChart === 'hum' ? <X size={13} /> : <Maximize2 size={13} />}
+                </button>
+              </div>
+              
+              {/* Sensor Pills / Custom Legend */}
+              <div className="shrink-0 w-full">
+                <CustomLegend 
+                  payload={legendPayload} 
+                  onHover={setHoveredRoom} 
+                  type="hum" 
+                  isTwoColumns={isTwoColumnsLegend} 
+                />
+              </div>
+              
+              {/* Line Chart: Visible in 2x2, 1x2, or when Expanded */}
+              {(showCharts || expandedChart === 'hum') && (
+                <div className="flex-1 min-h-[140px] sm:min-h-[160px] w-full mt-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={filteredData} margin={{ top: 8, right: 8, left: -24, bottom: 0 }} onMouseLeave={() => setHoveredRoom(null)}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" vertical={false} />
+                      <XAxis 
+                        dataKey="rawDate" 
+                        stroke="var(--text-muted)" 
+                        tick={{fill: 'var(--text-muted)', fontSize: 9}} 
+                        minTickGap={15}
+                        tickFormatter={(val) => {
+                          if (val && val.includes(' ')) return val.split(' ')[1];
+                          return val;
                         }}
-                        dot={false}
-                        activeDot={{ r: isHovered ? 6 : 4 }}
-                        connectNulls
-                        onMouseEnter={() => setHoveredRoom(room.id)}
-                        onMouseLeave={() => setHoveredRoom(null)}
                       />
-                    );
-                  })}
-                </LineChart>
-              </ResponsiveContainer>
+                      <YAxis 
+                        stroke={leftAxisColor} 
+                        tick={{fill: leftAxisColor, fontWeight: leftAxisWeight, fontSize: 9}} 
+                        ticks={humTicks.length > 0 ? humTicks : undefined}
+                        domain={humTicks.length > 0 ? [humTicks[0], humTicks[humTicks.length - 1]] : ['auto', 'auto']}
+                        style={{ filter: leftAxisFilter, transition: 'all 0.3s ease' }} 
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 23, 42, 0.85)', 
+                          backdropFilter: 'blur(8px)',
+                          WebkitBackdropFilter: 'blur(8px)',
+                          borderColor: 'rgba(255, 255, 255, 0.15)', 
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          fontSize: '10px',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+                        }}
+                        itemStyle={{ color: 'var(--text-main)', padding: '1px 0' }}
+                        labelStyle={{ fontWeight: 'bold', marginBottom: '2px', color: 'var(--text-muted)', fontSize: '10px' }}
+                        labelFormatter={(label) => `เวลา: ${label}`}
+                      />
+                      {rooms.map(room => {
+                        if (!visibleRooms[room.id]) return null;
+                        const isHovered = hoveredRoom === room.id;
+                        const isOthersHovered = hoveredRoom !== null && hoveredRoom !== room.id;
+                        
+                        return (
+                          <Line 
+                            key={`${room.id}_hum`}
+                            type="monotone" 
+                            dataKey={`${room.id}_hum`} 
+                            name={`${room.icon} ${room.name || room.sheetName}`} 
+                            stroke={room.color} 
+                            strokeWidth={isTvMode ? (isHovered ? 4 : 3) : (isHovered ? 2.5 : 1.5)} 
+                            strokeOpacity={isOthersHovered ? 0.15 : 1}
+                            style={{
+                              filter: isHovered ? `drop-shadow(0px 0px 4px ${room.color})` : 'none',
+                              transition: 'all 0.3s ease'
+                            }}
+                            dot={false}
+                            activeDot={{ r: isHovered ? 5 : 3.5 }}
+                            connectNulls
+                            onMouseEnter={() => setHoveredRoom(room.id)}
+                            onMouseLeave={() => setHoveredRoom(null)}
+                          />
+                        );
+                      })}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
-          </div>
+          )}
           
         </div>
       </div>
